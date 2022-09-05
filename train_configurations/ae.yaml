@@ -1,0 +1,19 @@
+# Optimization
+tune_config:
+      intermediate_dim: tune.choice([20, 40, 50])
+      code_dim: tune.choice([10, 20])
+      epochs: tune.choice([100])
+      lr: tune.choice([0.003, 0.001, 0.0009])
+      batch_size: tune.choice([200, 400, 600, 1000])
+      #l1: 'tune.sample_from(lambda _: 2 ** np.random.randint(2, 9))'
+      #l2: 'tune.sample_from(lambda _: 2 ** np.random.randint(2, 9))'
+      #lr: 'tune.loguniform(1e-4, 1e-1)'
+  
+# Dataset
+dataset:
+  name: 'nls_kdd'
+  sequential: False
+
+# Model
+model:
+  name: 'ae'
