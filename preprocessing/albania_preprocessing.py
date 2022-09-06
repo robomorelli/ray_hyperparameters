@@ -1,0 +1,23 @@
+
+import numpy as np
+import random
+from config import *
+
+def prep_albania(selected_pixels, dataset_train_split):
+
+    random.shuffle(selected_pixels)
+    train_size = int(np.ceil(len(selected_pixels) * dataset_train_split))
+    selected_pixels_train = selected_pixels[:train_size]
+    selected_pixels_val = selected_pixels[train_size:]
+
+    pixels_coords_train = selected_pixels_train
+    samples_coords_train = [' '.join((str(x[0]), str(x[1]))) for x in pixels_coords_train]
+    labels_train = [1 if x[-2] == 'g' else 0 for x in pixels_coords_train]
+    patch_path_train = [x[-1] for x in pixels_coords_train]
+
+    pixels_coords_val = selected_pixels_val
+    samples_coords_val = [' '.join((str(x[0]), str(x[1]))) for x in pixels_coords_val]
+    labels_val = [1 if x[-2] == 'g' else 0 for x in pixels_coords_val]
+    patch_path_val = [x[-1] for x in pixels_coords_val]
+
+    return samples_coords_train, labels_train, patch_path_train, samples_coords_val, labels_val, patch_path_val

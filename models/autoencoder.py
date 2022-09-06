@@ -4,7 +4,7 @@ import math
 import os
 
 class AE(nn.Module):
-    def __init__(self,cfg, **kwargs):
+    def __init__(self, cfg, **kwargs):
         super().__init__()
 
         self.original_dim = kwargs["original_dim"]

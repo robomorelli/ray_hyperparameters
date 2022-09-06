@@ -1,5 +1,6 @@
 from models.vae import VAE
 from models.autoencoder import AE
+from models.cnn3d import CNN3D
 
 def get_model(cfg, **kwargs):
     """
@@ -16,4 +17,8 @@ def get_model(cfg, **kwargs):
     if cfg.model.name == "ae":
         model = AE(cfg, original_dim=kwargs['original_dim'], intermediate_dim=kwargs['intermediate_dim'],
                     code_dim=kwargs['code_dim'])
+        return model
+
+    if cfg.model.name == "cnn3d":
+        model = CNN3D(cfg)
         return model

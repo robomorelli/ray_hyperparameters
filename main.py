@@ -26,11 +26,16 @@ def main(args):
                   .strip("[]").split(',')])
 
     trainer = get_trainer(cfg)
+    if cfg.resources.gpu_trial != 0:
+        resources_per_trial = {"cpu":cfg.resources.cpu_trial, "gpu": cfg.resources.gpu_trial}
+    else:
+        resources_per_trial = {"cpu": cfg.resources.cpu_trial}
+
     sched = ASHAScheduler(metric="loss", mode="min")
     analysis = tune.run(trainer,
                         scheduler=sched,
                         stop={"training_iteration": 10 ** 16},
-                        resources_per_trial={"cpu": 10, "gpu": 1},
+                        resources_per_trial=resources_per_trial,
                         num_samples=100,
                         checkpoint_at_end=True, #otherwise it fails on multinode?
                         # checkpoint_freq=1,
@@ -48,15 +53,15 @@ if __name__ == "__main__":
     parser.add_argument("--address", help="adress of master")
     parser.add_argument("--password", help="password to connect to master")
     #parser.add_argument("--config_path", default='./train_configurations/', help="echo the string you use here")
-    parser.add_argument("--config_file", default='ae', help="the model you want to hpo")
+    parser.add_argument("--config_file", default='cnn3d', help="the model you want to hpo")
     args = parser.parse_args()
 
-    os.environ['TUNE_MAX_PENDING_TRIALS_PG'] = "12"
+    os.environ['TUNE_MAX_PENDING_TRIALS_PG'] = "4"
 
     # to test on interactive node
     # first start from the terminal: ray start --head
     # args.address have to be the address of the node
-    ray.init(address='auto', _node_ip_address=args.address.split(":")[0], _redis_password=args.password)
+    ray.init(address='auto')
 
     main(args)
 

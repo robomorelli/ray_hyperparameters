@@ -27,7 +27,7 @@ class trainAe(tune.Trainable):
         self.trainloader, self.valloader, _, _\
             , self.original_dim = get_dataset(self.cfg, batch_size=self.batch_size)
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
         self.model = get_model(self.cfg, original_dim=self.original_dim, intermediate_dim=self.intermediate_dim,
                                 code_dim=self.code_dim).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
@@ -39,11 +39,6 @@ class trainAe(tune.Trainable):
         return result
 
     def train_ae(self, checkpoint_dir=None):
-        cuda = torch.cuda.is_available()
-        if cuda:
-            print('added visible gpu')
-            ngpus = torch.cuda.device_count() #needed if more trainer per gpu o more gpu per trainer
-
         ####Train Loop####
         """
         Set the models to the training mode first and train
@@ -100,6 +95,7 @@ class trainAe(tune.Trainable):
             val_loss_cpu = val_loss.cpu().item()
             print('validation_loss {}'.format(val_loss_cpu))
             scheduler.step(val_loss)
+
             return val_loss_cpu
 
     def save_checkpoint(self, checkpoint_dir):

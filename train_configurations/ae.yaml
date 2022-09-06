@@ -17,3 +17,7 @@ dataset:
 # Model
 model:
   name: 'ae'
+
+resources:
+  gpu_trial: 0.25
+  cpu_trial: 4
