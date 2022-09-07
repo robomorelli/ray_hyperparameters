@@ -32,15 +32,18 @@ def get_dataset(cfg, **kwargs):
 
         return trainloader, valloader, len(nls_kdd_cols), len(nls_kdd_cat_cols), trainx.shape[1]
 
-    if cfg.dataset.name == "albania":
+    if cfg.dataset.name == "albania_supervised":
         # Preprocessing step (load mixed coords of negative and positive)
         open_file = open(cfg.dataset.coords_path, "rb")
         selected_pixels = pickle.load(open_file)
         open_file.close()
 
+        metrics = ["accuracy", "f1_score"] # evaluate to pass from here the entire metric object to the trainer
+
         # use case: kwarg cames after loading data a preprocessing step (the can also come from object trainer (cnn3d trainer for example)
         #Kwargs information:
         c_train, l_train, path_train, c_val, l_val, path_val = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split)
+        c_test, l_test, path_test = prep_albania(selected_pixels, test=True)
 
         transform = T.Compose([
                 T.ToTensor(),
@@ -52,14 +55,18 @@ def get_dataset(cfg, **kwargs):
                                            transform=transform, samples_coords_train=c_train,
                                            labels_train=l_train, patch_path_train=path_train, samples_coords_val=c_val,
                                            labels_val=l_val, patch_path_val=path_val)
-
-        dataset_test = Supervised(patch_size=cfg.dataset.patch_size,
-                                           n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+        dataset_val = Supervised(patch_size=cfg.dataset.patch_size,
+                                           n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
                                             # From Kwargs:
                                            transform=transform, samples_coords_train=c_train,
                                            labels_train=l_train, patch_path_train=path_train, samples_coords_val=c_val,
                                            labels_val=l_val,  patch_path_val=path_val)
-
+        dataset_test = Supervised(patch_size=cfg.dataset.patch_size,
+                                           n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+                                           test=True,
+                                            # From Kwargs:
+                                           transform=transform, samples_coords_test=c_test,
+                                           labels_test=l_test, patch_path_test=path_test)
 
         #if cfg.opt.num_workers is None:
         #    num_workers = mp.cpu_count()
@@ -67,14 +74,12 @@ def get_dataset(cfg, **kwargs):
         #    num_workers = cfg.opt.num_workers
 
         train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],  shuffle=True) #num_workers=num_workers,
+        val_loader = DataLoader(dataset_val,  batch_size=kwargs['batch_size'], shuffle=False) #num_workers=num_workers,
         test_loader = DataLoader(dataset_test,  batch_size=kwargs['batch_size'], shuffle=False) #num_workers=num_workers,
 
         weights = get_class_weights(dataset_train)
 
-        return train_loader, test_loader, weights
-
-
-
+        return train_loader, val_loader, test_loader, weights, metrics
 
 
 
@@ -84,6 +89,12 @@ def get_class_weights(dataset):
         class_frequency = class_frequency_center_pixel(list(dataset), dataset.class_number)
         weights = [1 / (x / np.sum(class_frequency)) for x in class_frequency]
         weights = torch.FloatTensor(weights / np.max(weights))
+        if dataset.class_number == 1:
+            pos_weight = weights[1]/weights[0]
+            print(f"Class frequency: {class_frequency}")
+            print(f"Class weights: {weights}")
+            print(f"reweight: {pos_weight}")
+            return pos_weight
         print(f"Class frequency: {class_frequency}")
         print(f"Class weights: {weights}")
         return weights
@@ -107,7 +118,13 @@ def class_frequency_center_pixel(patch_list, n_classes) -> np.array:
         else:
             central_pixel = target[0]
         target_list.append(int(central_pixel))
-    target_arr = np.ones(n_classes)
+
+    if n_classes > 1:
+        target_arr = np.ones(n_classes)
+    elif n_classes == 1:
+        target_arr = np.ones(n_classes+1)
+
     for t in target_list:
         target_arr[t] += 1
+
     return target_arr

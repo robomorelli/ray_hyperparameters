@@ -3,10 +3,13 @@ import ray
 from ray.tune.schedulers import ASHAScheduler
 from omegaconf import OmegaConf
 from config import *
-#from trainer.vae_trainer import trainVae
 from utils.load_trainer import get_trainer
+from datetime import datetime
 
 def main(args):
+    now = datetime.now()
+    date = now.strftime("%D:%H:%M:%S")
+    print(date)
 
     print(args.address, args.password)
     #config_path = os.path.join(os.getcwd(), rel_conf_path)
@@ -31,19 +34,19 @@ def main(args):
     else:
         resources_per_trial = {"cpu": cfg.resources.cpu_trial}
 
-    sched = ASHAScheduler(metric="loss", mode="min")
+    sched = ASHAScheduler(metric="val_loss", mode="min")
     analysis = tune.run(trainer,
                         scheduler=sched,
                         stop={"training_iteration": 10 ** 16},
                         resources_per_trial=resources_per_trial,
-                        num_samples=100,
+                        num_samples=20,
                         checkpoint_at_end=True, #otherwise it fails on multinode?
                         # checkpoint_freq=1,
                         local_dir="~/ray_results",
-                        name="{}".format(cfg.model.name),
+                        name="{}/{}".format(cfg.model.name, date.replace('/', '-')),
                         config=config)
 
-    print("Best config is:", analysis.get_best_config(metric="loss"))
+    print("Best config is:", analysis.get_best_config(metric="val_loss", mode="min"))
 
 if __name__ == "__main__":
     # ip_head and redis_passwords are set by ray cluster shell scripts

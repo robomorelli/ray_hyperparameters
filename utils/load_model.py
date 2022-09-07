@@ -20,5 +20,8 @@ def get_model(cfg, **kwargs):
         return model
 
     if cfg.model.name == "cnn3d":
-        model = CNN3D(cfg)
+        model = CNN3D(cfg, **kwargs)
+        # optimizer and criterion should be defined here
+        # optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        # criterion = nn.CrossEntropyLoss(weight=self.weights.to(self.device))
         return model

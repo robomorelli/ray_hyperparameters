@@ -49,7 +49,6 @@ class trainAe(tune.Trainable):
                                                                , threshold=0.0001, threshold_mode='rel',
                                                                cooldown=0, min_lr=9e-8, verbose=True)
 
-
         for epoch in range(self.epochs):
             self.model.train()
             running_loss = 0.0
@@ -78,6 +77,7 @@ class trainAe(tune.Trainable):
             # val_loss = 0.0
             temp_val_loss = 0.0
             val_steps = 0
+            self.model.eval()
             for i, (x, y) in enumerate(self.valloader, 0):
                 with torch.no_grad():
                     x = x.to(self.device)

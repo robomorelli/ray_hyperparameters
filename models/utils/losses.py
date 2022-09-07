@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 from models.utils.layers import clip_x_to0
 

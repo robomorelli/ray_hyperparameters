@@ -103,9 +103,9 @@ class trainVae(tune.Trainable):
             ###############################################
 
             # Validation loss
-            # val_loss = 0.0
             temp_val_loss = 0.0
             val_steps = 0
+            self.model.eval()
             for i, (x, x) in enumerate(self.valloader, 0):
                 with torch.no_grad():
                     x = x.to(self.device)
@@ -117,6 +117,7 @@ class trainVae(tune.Trainable):
                     temp_val_loss += recon_loss + self.weight_KL_loss * KLD
 
                     val_steps += 1
+
             val_loss = temp_val_loss / len(self.valloader)
             val_loss_cpu = val_loss.cpu().item()
             print('validation_loss {}'.format(val_loss_cpu))
