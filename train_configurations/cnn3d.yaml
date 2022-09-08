@@ -36,4 +36,7 @@ resources:
 
 opt:
   fine_tuning: False
+  metrics: ['val_loss', 'val_acc', 'val_f1', 'test_acc', 'test_f1']
+  order_by: 'val_f1'
+
 
