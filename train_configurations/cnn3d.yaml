@@ -1,11 +1,14 @@
 # Optimization
 tune_config:
       #intermediate_dim: tune.choice([20, 40, 50])
-      epochs: tune.choice([100])
+      epochs: tune.choice([100, 200, 300])
       lr: tune.choice([0.003, 0.001, 0.0009, 0.0003, 0.0001])
+      lr_patience: tune.choice([3, 5, 7, 10])
       act: tune.choice(['Relu', 'Elu', 'Selu', 'LRelu'])
       batch_size: tune.choice([10, 20, 40])
-      num_filter: tune.choice([10, 20, 40, 60])
+      patch_size: tune.choice([7, 9, 11, 15, 25])
+      num_filter: tune.choice([10, 20, 40])
+      filter_size: tune.choice([3, 5])
       #l1: 'tune.sample_from(lambda _: 2 ** np.random.randint(2, 9))'
       #l2: 'tune.sample_from(lambda _: 2 ** np.random.randint(2, 9))'
       #lr: 'tune.loguniform(1e-4, 1e-1)'
@@ -15,7 +18,7 @@ dataset:
   name: 'albania_supervised'
   sequential: False
   in_channel: 24
-  patch_size: 7
+  #patch_size: 7
   coords_path: "/home/roberto/Documents/backup_rob/esa/fdir/data/hyper/albania/mosaic/selected_pixel_32.pkl" #Take relative path
   test_coords_path: "/home/roberto/Documents/backup_rob/esa/fdir/data/hyper/albania/mosaic/test/test.pkl"
   train_split: 0.70

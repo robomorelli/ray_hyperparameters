@@ -49,24 +49,25 @@ def get_dataset(cfg, **kwargs):
                 T.ToTensor(),
             ])
 
-        dataset_train = Supervised(patch_size=cfg.dataset.patch_size,
-                                           n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+        dataset_train = Supervised( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
                                             # From Kwargs:
+                                           patch_size= kwargs['patch_size'], batch_size = kwargs['batch_size'],
                                            transform=transform, samples_coords_train=c_train,
                                            labels_train=l_train, patch_path_train=path_train, samples_coords_val=c_val,
                                            labels_val=l_val, patch_path_val=path_val)
-        dataset_val = Supervised(patch_size=cfg.dataset.patch_size,
-                                           n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+        dataset_val = Supervised(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
                                             # From Kwargs:
+                                           patch_size= kwargs['patch_size'], batch_size = kwargs['batch_size'],
                                            transform=transform, samples_coords_train=c_train,
                                            labels_train=l_train, patch_path_train=path_train, samples_coords_val=c_val,
                                            labels_val=l_val,  patch_path_val=path_val)
-        dataset_test = Supervised(patch_size=cfg.dataset.patch_size,
-                                           n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
-                                           test=True,
+        dataset_test = Supervised(#patch_size=cfg.dataset.patch_size
+                                            n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+                                            test=True,
                                             # From Kwargs:
-                                           transform=transform, samples_coords_test=c_test,
-                                           labels_test=l_test, patch_path_test=path_test)
+                                            patch_size=kwargs['patch_size'], batch_size = kwargs['batch_size'],
+                                            transform=transform, samples_coords_test=c_test,
+                                            labels_test=l_test, patch_path_test=path_test)
 
         #if cfg.opt.num_workers is None:
         #    num_workers = mp.cpu_count()

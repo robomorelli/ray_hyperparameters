@@ -17,7 +17,9 @@ class CNN3D(nn.Module):
         self.act_dict = {'Relu':nn.ReLU, 'Elu':nn.ELU, "Selu":nn.SELU, "LRelu":nn.LeakyReLU}
         self.act = self.act_dict[kwargs['act']]
         self.num_filter = kwargs['num_filter']
+        self.filter_size = kwargs['filter_size'] # replace 3 in the old network filter size
         self.num_filter_2 = int(self.num_filter*3/4) + self.num_filter
+
 
         dilation = (self.dilation, 1, 1)
 
@@ -27,28 +29,28 @@ class CNN3D(nn.Module):
             )
         else:
             self.conv1 = nn.Conv3d(
-                1, self.num_filter, (3, 3, 3), stride=(1, 1, 1), dilation=dilation, padding=0
+                1, self.num_filter, (self.filter_size, self.filter_size, self.filter_size), stride=(1, 1, 1), dilation=dilation, padding=0
             )
         # Next pooling is applied using a layer identical to the previous one
         # with the difference of a 1D kernel size (1,1,3) and a larger stride
         # equal to 2 in order to reduce the spectral dimension
         self.pool1 = nn.Conv3d(
-            self.num_filter, self.num_filter, (3, 1, 1), dilation=dilation, stride=(2, 1, 1), padding=(1, 0, 0)
+            self.num_filter, self.num_filter, (self.filter_size, 1, 1), dilation=dilation, stride=(2, 1, 1), padding=(1, 0, 0)
         )
         # Then, a duplicate of the first and second layers is created with
         # 35 hidden neurons per layer.
         self.conv2 = nn.Conv3d(
-            self.num_filter, self.num_filter_2, (3, 3, 3), dilation=dilation, stride=(1, 1, 1), padding=(1, 0, 0)
+            self.num_filter, self.num_filter_2, (self.filter_size, self.filter_size, self.filter_size), dilation=dilation, stride=(1, 1, 1), padding=(1, 0, 0)
         )
         self.pool2 = nn.Conv3d(
-            self.num_filter_2, self.num_filter_2, (3, 1, 1), dilation=dilation, stride=(2, 1, 1), padding=(1, 0, 0)
+            self.num_filter_2, self.num_filter_2, (self.filter_size, 1, 1), dilation=dilation, stride=(2, 1, 1), padding=(1, 0, 0)
         )
         # Finally, the 1D spatial dimension is progressively reduced
         # thanks to the use of two Conv layers, 35 neurons each,
         # with respective kernel sizes of (1,1,3) and (1,1,2) and strides
         # respectively equal to (1,1,1) and (1,1,2)
         self.conv3 = nn.Conv3d(
-            self.num_filter_2, self.num_filter_2, (3, 1, 1), dilation=dilation, stride=(1, 1, 1), padding=(1, 0, 0)
+            self.num_filter_2, self.num_filter_2, (self.filter_size, 1, 1), dilation=dilation, stride=(1, 1, 1), padding=(1, 0, 0)
         )
         self.conv4 = nn.Conv3d(
             self.num_filter_2, self.num_filter_2, (2, 1, 1), dilation=dilation, stride=(2, 1, 1), padding=(1, 0, 0)
@@ -71,7 +73,6 @@ class CNN3D(nn.Module):
         self.acc = Accuracy()
         self.f1_score = F1Score()
         self.val_cm = ConfusionMatrix(self.n_classes)
-
 
     @staticmethod
     def weight_init(m):

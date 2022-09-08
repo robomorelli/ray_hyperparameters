@@ -22,13 +22,23 @@ class trainCNN3D(tune.Trainable):
         self.lr = config['lr']
         self.batch_size = config['batch_size']
         self.epochs = config['epochs']
+        self.patience = config['lr_patience']
         self.num_filter = config['num_filter']
         self.act = config['act']
+        self.filter_size = config['filter_size']
+        self.patch_size = config['patch_size']
 
-        self.trainloader, self.valloader, self.testloader, self.weights, self.metrics = get_dataset(self.cfg, batch_size=self.batch_size)
+        self.best_val_loss = 10**16
+
+        self.cfg['model']['num_filter'] = self.num_filter
+        self.cfg['model']['filter_size'] = self.filter_size
+        self.cfg['model']['act'] = self.act
+        self.cfg['dataset']['patch_size'] = self.patch_size
+
+        self.trainloader, self.valloader, self.testloader, self.weights, self.metrics = get_dataset(self.cfg, batch_size=self.batch_size,
+                                                                                     patch_size=self.patch_size)
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
-
-        self.model = get_model(self.cfg, num_filter=self.num_filter, act=self.act).to(self.device)
+        self.model = get_model(self.cfg, num_filter=self.num_filter, act=self.act,  filter_size=self.filter_size).to(self.device)
 
         if "accuracy" in self.metrics:
             self.acc = self.model.acc.to(self.device)
@@ -36,6 +46,10 @@ class trainCNN3D(tune.Trainable):
             self.f1_score = self.model.f1_score.to(self.device)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8, patience=self.patience
+                                                               , threshold=0.0001, threshold_mode='rel',
+                                                               cooldown=0, min_lr=9e-8, verbose=True)
+
         if self.class_number > 1:
             self.criterion = nn.CrossEntropyLoss(weight=self.weights).to(self.device)
         else:
@@ -73,13 +87,14 @@ class trainCNN3D(tune.Trainable):
 
     def step(self):
         self.current_ip()
+
         result = self.trainCNN3D(checkpoint_dir=None)
         test_results = self.testCNN3D(checkpoint_dir=None)
         result.update(test_results)
         print('these are the results dict',result)
         #result = {"val_loss": val_loss, "test_loss": test_loss}
 
-        # if detect_instance_preemption():
+        #if detect_instance_preemption():
         #    result.update(should_checkpoint=True)
         # acc = test(self.models, self.test_loader, self.device)
         # don't call report here!
@@ -91,10 +106,7 @@ class trainCNN3D(tune.Trainable):
         Set the models to the training mode first and train
         """
         train_loss = []
-        patience = 1
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8, patience=patience
-                                                               , threshold=0.0001, threshold_mode='rel',
-                                                               cooldown=0, min_lr=9e-8, verbose=True)
+
 
         # each step should be last all the epoch times if you don't return after validation step
         for epoch in range(self.epochs):
@@ -162,16 +174,25 @@ class trainCNN3D(tune.Trainable):
 
             val_loss = temp_val_loss / val_steps
             self.val_loss_cpu = val_loss.cpu().item()
+
             try:
                 f1_score = self.f1_score(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
                 acc = self.acc(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
                 print("val Loss: {} and f1_score {}".format(self.val_loss_cpu , f1_score))
-                scheduler.step(val_loss)
-                return {"val_loss":self.val_loss_cpu , "val_acc":acc,  "val_f1":f1_score}
+                self.scheduler.step(val_loss)
+                if self.val_loss_cpu < self.best_val_loss:
+                    self.best_val_loss = self.val_loss_cpu
+                    return {"val_loss":self.val_loss_cpu , "val_acc":acc,  "val_f1":f1_score, "should_checkpoint": True}
+                else:
+                    return {"val_loss":self.val_loss_cpu , "val_acc":acc,  "val_f1":f1_score}
             except:
                 print('validation_loss {}'.format(self.val_loss_cpu))
-                scheduler.step(val_loss)
-                return {"val_loss":self.val_loss_cpu }
+                self.scheduler.step(val_loss)
+                if self.val_loss_cpu < self.best_val_loss:
+                    self.best_val_loss = self.val_loss_cpu
+                    return {"val_loss":self.val_loss_cpu, "should_checkpoint": True}
+                else:
+                    return {"val_loss":self.val_loss_cpu }
 
     def testCNN3D(self, checkpoint_dir=None):
         ###############################################
