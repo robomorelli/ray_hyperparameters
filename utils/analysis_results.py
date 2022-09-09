@@ -24,12 +24,13 @@ def main(args):
             df_exp = pd.read_csv(os.path.join(folder,en,"progress.csv"))
         except:
             continue
-        dict = {'name': en}
-        for m in metrics:
-            dict[m] = df_exp[m].sort_values(ascending=False).iloc[0]
-        for l in losses:
-            dict[l] = df_exp[l].sort_values(ascending=True).iloc[0]
-        summary_df = summary_df.append(dict, ignore_index=True)
+        if len(df_exp) > 0:
+            dict = {'name': en}
+            for m in metrics:
+                dict[m] = df_exp[m].sort_values(ascending=False).iloc[0]
+            for l in losses:
+                dict[l] = df_exp[l].sort_values(ascending=True).iloc[0]
+            summary_df = summary_df.append(dict, ignore_index=True)
 
     summary_df.sort_values(by=[cfg.opt.order_by], ascending=False, inplace=True)
     summary_df.to_csv(os.path.join(folder, 'summary.csv'))
@@ -41,7 +42,7 @@ if __name__ == "__main__":
     base_path = os.path.join(home,'ray_results')
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment_path", default=base_path, help="the model you want to hpo")
-    parser.add_argument("--experiment_name", default='cnn3d/09-08-22:10:33:23', help="the model you want to hpo")
+    parser.add_argument("--experiment_name", default='cnn3d/09-08-22:17:10:04', help="the model you want to hpo")
     args = parser.parse_args()
 
     main(args)

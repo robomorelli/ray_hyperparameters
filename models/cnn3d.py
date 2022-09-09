@@ -20,7 +20,6 @@ class CNN3D(nn.Module):
         self.filter_size = kwargs['filter_size'] # replace 3 in the old network filter size
         self.num_filter_2 = int(self.num_filter*3/4) + self.num_filter
 
-
         dilation = (self.dilation, 1, 1)
 
         if self.patch_size == 3:

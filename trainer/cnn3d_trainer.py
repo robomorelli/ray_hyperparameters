@@ -112,7 +112,8 @@ class trainCNN3D(tune.Trainable):
         for epoch in range(self.epochs):
             self.current_epoch = epoch
             self.model.train()
-            running_loss = 0.0
+            temp_train_loss = 0.0
+            train_steps = 0
             for i, (x, y) in enumerate(self.trainloader):
 
                 x = x.float().to(self.device)
@@ -133,9 +134,13 @@ class trainCNN3D(tune.Trainable):
                 loss.backward()
                 self.optimizer.step()
 
-                #running_loss += loss.item()
+                temp_train_loss += loss
+                train_steps += 1
                 if i % 10 == 0:
                     print(" training Loss: {}".format(loss.item()))
+
+            train_loss = temp_train_loss / train_steps
+            self.train_loss_cpu = train_loss.cpu().item()
             ###############################################
             # eval mode for evaluation on validation dataset
             ###############################################
@@ -182,17 +187,20 @@ class trainCNN3D(tune.Trainable):
                 self.scheduler.step(val_loss)
                 if self.val_loss_cpu < self.best_val_loss:
                     self.best_val_loss = self.val_loss_cpu
-                    return {"val_loss":self.val_loss_cpu , "val_acc":acc,  "val_f1":f1_score, "should_checkpoint": True}
+                    return {"train_loss": self.train_loss_cpu, "val_loss":self.val_loss_cpu, "val_acc":acc,
+                    "val_f1":f1_score, "should_checkpoint": True}
                 else:
-                    return {"val_loss":self.val_loss_cpu , "val_acc":acc,  "val_f1":f1_score}
+                    return {"train_loss": self.train_loss_cpu,
+                            "val_loss":self.val_loss_cpu , "val_acc":acc,  "val_f1":f1_score}
             except:
                 print('validation_loss {}'.format(self.val_loss_cpu))
                 self.scheduler.step(val_loss)
                 if self.val_loss_cpu < self.best_val_loss:
                     self.best_val_loss = self.val_loss_cpu
-                    return {"val_loss":self.val_loss_cpu, "should_checkpoint": True}
+                    return {"train_loss": self.train_loss_cpu,
+                            "val_loss":self.val_loss_cpu, "should_checkpoint": True}
                 else:
-                    return {"val_loss":self.val_loss_cpu }
+                    return {"train_loss": self.train_loss_cpu, "val_loss":self.val_loss_cpu}
 
     def testCNN3D(self, checkpoint_dir=None):
         ###############################################
