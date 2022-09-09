@@ -1,3 +1,7 @@
+*.yaml
 *.pyc
 *.npy
 *.h5
+*.xml
+*.iml
+data/*

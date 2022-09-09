@@ -34,12 +34,11 @@ def get_dataset(cfg, **kwargs):
 
     if cfg.dataset.name == "albania_supervised":
         # Preprocessing step (load mixed coords of negative and positive)
-        open_file = open(cfg.dataset.coords_path, "rb")
+        open_file = open(os.path.join(root + cfg.dataset.coords_path), "rb")
         selected_pixels = pickle.load(open_file)
         open_file.close()
 
         metrics = ["accuracy", "f1_score"] # evaluate to pass from here the entire metric object to the trainer
-
         # use case: kwarg cames after loading data a preprocessing step (the can also come from object trainer (cnn3d trainer for example)
         #Kwargs information:
         c_train, l_train, path_train, c_val, l_val, path_val = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split)
@@ -74,9 +73,12 @@ def get_dataset(cfg, **kwargs):
         #else:
         #    num_workers = cfg.opt.num_workers
 
-        train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],  shuffle=True) #num_workers=num_workers,
-        val_loader = DataLoader(dataset_val,  batch_size=kwargs['batch_size'], shuffle=False) #num_workers=num_workers,
-        test_loader = DataLoader(dataset_test,  batch_size=kwargs['batch_size'], shuffle=False) #num_workers=num_workers,
+        train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
+                                 num_workers=cfg.opt.num_workers, shuffle=True) #num_workers=num_workers,
+        val_loader = DataLoader(dataset_val,  batch_size=kwargs['batch_size'],
+                                num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
+        test_loader = DataLoader(dataset_test,  batch_size=kwargs['batch_size'],
+                                 num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
 
         weights = get_class_weights(dataset_train)
 

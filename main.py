@@ -39,7 +39,7 @@ def main(args):
                         scheduler=sched,
                         stop={"training_iteration": 10 ** 16},
                         resources_per_trial=resources_per_trial,
-                        num_samples=100,
+                        num_samples=200,
                         checkpoint_at_end=True, #otherwise it fails on multinode?
                         #checkpoint_freq=1,
                         local_dir="~/ray_results",
@@ -59,12 +59,13 @@ if __name__ == "__main__":
     parser.add_argument("--config_file", default='cnn3d', help="the model you want to hpo")
     args = parser.parse_args()
 
-    os.environ['TUNE_MAX_PENDING_TRIALS_PG'] = "4"
+    os.environ['TUNE_MAX_PENDING_TRIALS_PG'] = "12"
 
     # to test on interactive node
     # first start from the terminal: ray start --head
-    # args.address have to be the address of the node
+    # args.address have to be the address of the node otherwis uncomment ray.init(address='auto') line
     ray.init(address='auto')
+    #ray.init(address='auto', _node_ip_address=args.address.split(":")[0], _redis_password=args.password)
 
     main(args)
 
