@@ -246,6 +246,26 @@ class trainCNN3D(tune.Trainable):
             print("test Loss: {}".format(test_loss_cpu))
             return {"test_loss": test_loss_cpu}
 
+    #def k_fold_eval(self):
+    #
+            #    for fold, (train_idx, test_idx) in enumerate(kfold.split(dataset)):
+            #        print('------------fold no---------{}----------------------'.format(fold))
+            #        train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
+            #        test_subsampler = torch.utils.data.SubsetRandomSampler(test_idx)
+            #
+            #        trainloader = torch.utils.data.DataLoader(
+            #            dataset,
+            #            batch_size=batch_size, sampler=train_subsampler)
+            #        testloader = torch.utils.data.DataLoader(
+            #            dataset,
+            #            batch_size=batch_size, sampler=test_subsampler)
+            #
+            #        model.apply(reset_weights)
+
+            #        for epoch in range(1, epochs + 1):
+            #            train(fold, model, device, trainloader, optimizer, epoch)
+            #   test(fold, model, device, testloader)
+
 
     def save_checkpoint(self, checkpoint_dir):
         print("this is the checkpoint dir {}".format(checkpoint_dir))

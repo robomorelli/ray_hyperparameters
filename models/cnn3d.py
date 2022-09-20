@@ -79,6 +79,10 @@ class CNN3D(nn.Module):
             nn.init.kaiming_normal_(m.weight)
             nn.init.zeros_(m.bias)
 
+    def reset_weights(m):
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+            m.reset_parameters()
+
     def _get_final_flattened_size(self):
         with torch.no_grad():
             x = torch.zeros(

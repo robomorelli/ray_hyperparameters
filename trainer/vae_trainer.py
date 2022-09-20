@@ -50,7 +50,7 @@ class trainVae(tune.Trainable):
     def step(self):
         self.current_ip()
         val_loss = self.train_vae(checkpoint_dir=None)
-        result = {"loss": val_loss}
+        result = {"val_loss": val_loss}
         # if detect_instance_preemption():
         #    result.update(should_checkpoint=True)
         # acc = test(self.models, self.test_loader, self.device)
