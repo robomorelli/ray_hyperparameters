@@ -35,7 +35,7 @@ class trainAe(tune.Trainable):
     def step(self):
         self.current_ip()
         val_loss = self.train_ae(checkpoint_dir=None)
-        result = {"loss": val_loss}
+        result = {"val_loss": val_loss}
         return result
 
     def train_ae(self, checkpoint_dir=None):

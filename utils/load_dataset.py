@@ -4,8 +4,9 @@ from dataset.nls_kdd_dataloader import numpyArray
 from dataset.albania_dataloader import Supervised
 
 import torch
-from torch.utils.data import DataLoader
 from torchvision.transforms import transforms as T
+from torch.utils.data import DataLoader,ConcatDataset
+from sklearn.model_selection import KFold
 import pickle
 import numpy as np
 import multiprocessing as mp
@@ -38,15 +39,20 @@ def get_dataset(cfg, **kwargs):
         selected_pixels = pickle.load(open_file)
         open_file.close()
 
+        open_file = open(os.path.join(root + cfg.dataset.test_coords_path), "rb")
+        test_selected_pixels = pickle.load(open_file)
+        open_file.close()
+
         metrics = ["accuracy", "f1_score"] # evaluate to pass from here the entire metric object to the trainer
         # use case: kwarg cames after loading data a preprocessing step (the can also come from object trainer (cnn3d trainer for example)
         #Kwargs information:
-        c_train, l_train, path_train, c_val, l_val, path_val = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split)
-        c_test, l_test, path_test = prep_albania(selected_pixels, test=True)
 
         transform = T.Compose([
-                T.ToTensor(),
-            ])
+            T.ToTensor(),
+        ])
+
+        c_train, l_train, path_train, c_val, l_val, path_val = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split)
+        c_test, l_test, path_test = prep_albania(test_selected_pixels, test=True)
 
         dataset_train = Supervised( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
                                             # From Kwargs:
@@ -73,18 +79,24 @@ def get_dataset(cfg, **kwargs):
         #else:
         #    num_workers = cfg.opt.num_workers
 
-        train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
-                                 num_workers=cfg.opt.num_workers, shuffle=True) #num_workers=num_workers,
-        val_loader = DataLoader(dataset_val,  batch_size=kwargs['batch_size'],
-                                num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
-        test_loader = DataLoader(dataset_test,  batch_size=kwargs['batch_size'],
-                                 num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
+        if cfg.opt.k_fold_cv:
+            kfold = KFold(n_splits=cfg.opt.k_fold_cv, shuffle=True)
+            dataset = ConcatDataset([dataset_train, dataset_val])
 
-        weights = get_class_weights(dataset_train)
+            return dataset
 
-        return train_loader, val_loader, test_loader, weights, metrics
+        else:
 
+            train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
+                                     num_workers=cfg.opt.num_workers, shuffle=True) #num_workers=num_workers,
+            val_loader = DataLoader(dataset_val,  batch_size=kwargs['batch_size'],
+                                    num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
+            test_loader = DataLoader(dataset_test,  batch_size=kwargs['batch_size'],
+                                     num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
 
+            weights = get_class_weights(dataset_train)
+
+            return train_loader, val_loader, test_loader, weights, metrics
 
 
 def get_class_weights(dataset):
