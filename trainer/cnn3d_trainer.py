@@ -35,8 +35,11 @@ class trainCNN3D(tune.Trainable):
         self.cfg['model']['act'] = self.act
         self.cfg['dataset']['patch_size'] = self.patch_size
 
+
         self.trainloader, self.valloader, self.testloader, self.weights, self.metrics = get_dataset(self.cfg, batch_size=self.batch_size,
-                                                                                     patch_size=self.patch_size)
+                                                                        patch_size=self.patch_size, from_dictionary=self.cfg.dataset.from_dictionary)
+
+
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
         self.model = get_model(self.cfg, num_filter=self.num_filter, act=self.act,  filter_size=self.filter_size).to(self.device)
 

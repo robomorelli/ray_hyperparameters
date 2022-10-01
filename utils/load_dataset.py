@@ -1,7 +1,7 @@
 from preprocessing.nls_kdd_preprocessing import prep_nls_kdd_test, prep_nls_kdd_train_val
 from preprocessing.albania_preprocessing import prep_albania
 from dataset.nls_kdd_dataloader import numpyArray
-from dataset.albania_dataloader import Supervised
+from dataset.albania_dataloader import Supervised, Supervised_dictionary
 
 import torch
 from torchvision.transforms import transforms as T
@@ -9,9 +9,11 @@ from torch.utils.data import DataLoader,ConcatDataset
 from sklearn.model_selection import KFold
 import pickle
 import numpy as np
+from omegaconf import OmegaConf
 import multiprocessing as mp
 
 from config import *
+
 
 def get_dataset(cfg, **kwargs):
     """
@@ -51,28 +53,50 @@ def get_dataset(cfg, **kwargs):
             T.ToTensor(),
         ])
 
-        c_train, l_train, path_train, c_val, l_val, path_val = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split)
-        c_test, l_test, path_test = prep_albania(test_selected_pixels, test=True)
+        if not kwargs['from_dictionary']:
+            c_train, l_train, path_train, c_val, l_val, path_val = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split)
+            c_test, l_test, path_test = prep_albania(test_selected_pixels, test=True)
 
-        dataset_train = Supervised( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
-                                            # From Kwargs:
-                                           patch_size= kwargs['patch_size'], batch_size = kwargs['batch_size'],
-                                           transform=transform, samples_coords_train=c_train,
-                                           labels_train=l_train, patch_path_train=path_train, samples_coords_val=c_val,
-                                           labels_val=l_val, patch_path_val=path_val)
-        dataset_val = Supervised(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
-                                            # From Kwargs:
-                                           patch_size= kwargs['patch_size'], batch_size = kwargs['batch_size'],
-                                           transform=transform, samples_coords_train=c_train,
-                                           labels_train=l_train, patch_path_train=path_train, samples_coords_val=c_val,
-                                           labels_val=l_val,  patch_path_val=path_val)
-        dataset_test = Supervised(#patch_size=cfg.dataset.patch_size
-                                            n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
-                                            test=True,
-                                            # From Kwargs:
-                                            patch_size=kwargs['patch_size'], batch_size = kwargs['batch_size'],
-                                            transform=transform, samples_coords_test=c_test,
-                                            labels_test=l_test, patch_path_test=path_test)
+            dataset_train = Supervised( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+                                                # From Kwargs:
+                                               patch_size=kwargs['patch_size'], batch_size=kwargs['batch_size'],
+                                               transform=transform, samples_coords_train=c_train,
+                                               labels_train=l_train, patch_path_train=path_train, samples_coords_val=c_val,
+                                               labels_val=l_val, patch_path_val=path_val)
+            dataset_val = Supervised(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+                                                # From Kwargs:
+                                               patch_size= kwargs['patch_size'], batch_size = kwargs['batch_size'],
+                                               transform=transform, samples_coords_train=c_train,
+                                               labels_train=l_train, patch_path_train=path_train, samples_coords_val=c_val,
+                                               labels_val=l_val,  patch_path_val=path_val)
+            dataset_test = Supervised(#patch_size=cfg.dataset.patch_size
+                                                n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+                                                test=True,
+                                                # From Kwargs:
+                                                patch_size=kwargs['patch_size'], batch_size = kwargs['batch_size'],
+                                                transform=transform, samples_coords_test=c_test,
+                                                labels_test=l_test, patch_path_test=path_test)
+        else:
+
+            train_dict, val_dict = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split,
+                                                from_dictionary=cfg.dataset.from_dictionary)
+            #test_dict = prep_albania(test_selected_pixels, test=True)
+
+            dataset_train = Supervised_dictionary( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+                                                # From Kwargs:
+                                               patch_size=kwargs['patch_size'], batch_size=kwargs['batch_size'],
+                                               transform=transform, train_dict=train_dict, val_dict=val_dict)
+            dataset_val = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+                                                # From Kwargs:
+                                               patch_size= kwargs['patch_size'], batch_size = kwargs['batch_size'],
+                                               transform=transform, val_dict=val_dict, train_dict=train_dict)
+            dataset_test = Supervised_dictionary(#patch_size=cfg.dataset.patch_size
+                                                n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+                                                test=True,
+                                                # From Kwargs:
+                                                patch_size=kwargs['patch_size'], batch_size = kwargs['batch_size'],
+                                                transform=transform, test_dict=test_selected_pixels)
+
 
         #if cfg.opt.num_workers is None:
         #    num_workers = mp.cpu_count()
@@ -105,7 +129,7 @@ def get_class_weights(dataset):
         weights = [1 / (x / np.sum(class_frequency)) for x in class_frequency]
         weights = torch.FloatTensor(weights / np.max(weights))
         if dataset.class_number == 1:
-            pos_weight = weights[1]/weights[0]
+            pos_weight = (weights[1]/weights[0])/5
             print(f"Class frequency: {class_frequency}")
             print(f"Class weights: {weights}")
             print(f"reweight: {pos_weight}")
@@ -143,3 +167,7 @@ def class_frequency_center_pixel(patch_list, n_classes) -> np.array:
         target_arr[t] += 1
 
     return target_arr
+
+#if __name__ == "__main__":
+#    cfg = OmegaConf.load("/home/roberto/Documents/backup_rob/esa/fdir/train_configurations/cnn3d" + '.yaml')
+#    get_dataset(cfg)

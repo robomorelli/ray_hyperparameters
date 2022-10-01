@@ -55,6 +55,7 @@ class Supervised(torch.utils.data.Dataset):
 
         if self.transform is not None:
             images = self.transform(batch)
+
         return images, labels
 
     def load_image(self, path, key=None):
@@ -70,3 +71,39 @@ class Supervised(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.samples_coords)
+
+
+
+class Supervised_dictionary(torch.utils.data.Dataset):
+    def __init__(self, patch_size=1, n_channels=24,
+                  class_number=0, train=True, test=False, transform=None, ae=False,
+                 **kwargs):
+
+        self.n_channels = n_channels
+        self.p_size = patch_size
+        self.class_number = class_number
+        self.transform = transform
+        self.ae = ae #not used so far
+
+        # From Kwargs
+        if not test:
+            self.dict = kwargs['train_dict'] if train else kwargs['val_dict']
+        else:
+            self.dict = kwargs['test_dict']
+
+    def __getitem__(self, index: int) -> (np.array, np.array):
+        """
+        Return images with shape (C, W, H)
+        :param index:
+        :return:
+        """
+
+        batch, labels = self.dict['signatures'][index], self.dict['labels'][index]
+        #print(batch.shape)
+
+        #images = torch.unsqueeze(batch,0)
+
+        return batch, labels
+
+    def __len__(self):
+        return len(self.dict['signatures'])
