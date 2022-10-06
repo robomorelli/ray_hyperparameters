@@ -75,12 +75,11 @@ class Supervised(torch.utils.data.Dataset):
 
 
 class Supervised_dictionary(torch.utils.data.Dataset):
-    def __init__(self, patch_size=1, n_channels=24,
+    def __init__(self, n_channels=24,
                   class_number=0, train=True, test=False, transform=None, ae=False,
                  **kwargs):
 
         self.n_channels = n_channels
-        self.p_size = patch_size
         self.class_number = class_number
         self.transform = transform
         self.ae = ae #not used so far
