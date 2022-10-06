@@ -91,6 +91,11 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         else:
             self.dict = kwargs['test_dict']
 
+        if 'patch_size' in kwargs.keys():
+            self.p_size = kwargs['patch_size']
+        else:
+            self.p_size = False
+
     def __getitem__(self, index: int) -> (np.array, np.array):
         """
         Return images with shape (C, W, H)
@@ -98,10 +103,21 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         :return:
         """
 
-        batch, labels = self.dict['signatures'][index], self.dict['labels'][index]
-        #print(batch.shape)
+        if self.p_size:
+            batch, labels = self.dict['signatures'][index], self.dict['labels'][index]
+            central_pixel = (batch.shape[0] // 2) + 1
 
-        #images = torch.unsqueeze(batch,0)
+            if self.p_size > 1:
+                batch = batch[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
+                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1, :]
+                labels = labels[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
+                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
+            else:
+                batch = batch[central_pixel: central_pixel + 1, central_pixel:  central_pixel + 1]
+                labels = labels[central_pixel, central_pixel]
+
+        else:
+            batch, labels = self.dict['signatures'][index], self.dict['labels'][index]
 
         return batch, labels
 
