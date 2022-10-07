@@ -49,11 +49,13 @@ def get_dataset(cfg, **kwargs):
         # use case: kwarg cames after loading data a preprocessing step (the can also come from object trainer (cnn3d trainer for example)
         #Kwargs information:
 
-        transform = T.Compose([
-            T.ToTensor(),
-        ])
 
         if not kwargs['from_dictionary']:
+
+            transform = T.Compose([
+                T.ToTensor(),
+            ])
+
             c_train, l_train, path_train, c_val, l_val, path_val = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split)
             c_test, l_test, path_test = prep_albania(test_selected_pixels, test=True)
 
@@ -77,31 +79,39 @@ def get_dataset(cfg, **kwargs):
                                                 transform=transform, samples_coords_test=c_test,
                                                 labels_test=l_test, patch_path_test=path_test)
         else:
+            transform = T.Compose([
+                T.ToTensor(),
+            ])
 
             train_dict, val_dict = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split,
                                                 from_dictionary=cfg.dataset.from_dictionary)
             #test_dict = prep_albania(test_selected_pixels, test=True)
 
-            dataset_train = Supervised_dictionary( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+            dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+                                                   transform=transform,
                                                 # From Kwargs:
-                                               patch_size=kwargs['patch_size'], batch_size=kwargs['batch_size'],
-                                               transform=transform, train_dict=train_dict, val_dict=val_dict)
+                                                patch_size=kwargs['patch_size'], #batch_size = kwargs['batch_size'],
+                                                train_dict=train_dict, val_dict=val_dict)
             dataset_val = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+                                                transform=transform,
                                                 # From Kwargs:
-                                               patch_size= kwargs['patch_size'], batch_size = kwargs['batch_size'],
-                                               transform=transform, val_dict=val_dict, train_dict=train_dict)
-            dataset_test = Supervised_dictionary(#patch_size=cfg.dataset.patch_size
-                                                n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+                                               patch_size= kwargs['patch_size'], #batch_size = kwargs['batch_size'],
+                                                val_dict=val_dict, train_dict=train_dict)
+            dataset_test = Supervised_dictionary( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
                                                 test=True,
+                                                transform=transform,
                                                 # From Kwargs:
-                                                patch_size=kwargs['patch_size'], batch_size = kwargs['batch_size'],
-                                                transform=transform, test_dict=test_selected_pixels)
+                                                patch_size=kwargs['patch_size'], #batch_size = kwargs['batch_size'],
+                                                 test_dict=test_selected_pixels)
 
 
         #if cfg.opt.num_workers is None:
         #    num_workers = mp.cpu_count()
         #else:
         #    num_workers = cfg.opt.num_workers
+
+        #for p in pixels:
+        #    p[-1] = "/davinci-1/work/ailab_public/20220915/Dati_LeonardoLabs/Casi_Albania_Georeferenziato/UCASI_2022_06_25_084721.cc.dc.sl.so.rc.sc.PrN288.g/mosaic"
 
         if cfg.opt.k_fold_cv:
             kfold = KFold(n_splits=cfg.opt.k_fold_cv, shuffle=True)
@@ -129,7 +139,7 @@ def get_class_weights(dataset):
         weights = [1 / (x / np.sum(class_frequency)) for x in class_frequency]
         weights = torch.FloatTensor(weights / np.max(weights))
         if dataset.class_number == 1:
-            pos_weight = (weights[1]/weights[0])/5
+            pos_weight = (weights[1]/weights[0])
             print(f"Class frequency: {class_frequency}")
             print(f"Class weights: {weights}")
             print(f"reweight: {pos_weight}")

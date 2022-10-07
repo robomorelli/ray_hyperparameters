@@ -103,22 +103,27 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         """
 
         if self.p_size:
-            batch, labels = self.dict['signatures'][index], self.dict['labels'][index]
-            central_pixel = (batch.shape[0] // 2) + 1
+            batch, labels = self.dict['patches'][index], self.dict['labels'][index]
+            if batch.shape[0]==0:
+                print('sizeesssssssss wrong', batch.shape[0])
+            central_pixel = (batch.shape[1] // 2)
 
             if self.p_size > 1:
-                batch = batch[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
-                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1, :]
+                batch = batch[:, central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
+                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
                 labels = labels[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
                 , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
+
             else:
                 batch = batch[central_pixel: central_pixel + 1, central_pixel:  central_pixel + 1]
                 labels = labels[central_pixel, central_pixel]
 
         else:
-            batch, labels = self.dict['signatures'][index], self.dict['labels'][index]
+            batch, labels = self.dict['patches'][index], self.dict['labels'][index]
 
+        #images = batch.transpose(2, 0, 1)
+        #print('sizesssss',batch.shape)
         return batch, labels
 
     def __len__(self):
-        return len(self.dict['signatures'])
+        return len(self.dict['patches'])

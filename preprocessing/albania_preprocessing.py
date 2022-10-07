@@ -33,11 +33,11 @@ def prep_albania(selected_pixels, dataset_train_split=0.70, test=False, from_dic
 
     else:
         if not test:
-            tot_len = len(selected_pixels['signatures'])
+            tot_len = len(selected_pixels['patches'])
             train_len = int(tot_len * dataset_train_split)
             #val_len = int(tot_len * 0.33)
 
-            items = list(zip(selected_pixels['signatures'], selected_pixels['labels']))
+            items = list(zip(selected_pixels['patches'], selected_pixels['labels']))
             random.shuffle(items)
 
             patches, labels = zip(*items)
@@ -50,17 +50,17 @@ def prep_albania(selected_pixels, dataset_train_split=0.70, test=False, from_dic
             train_dict = {}
             val_dict = {}
 
-            train_dict['signatures'] = patches_train
+            train_dict['patches'] = patches_train
             train_dict['labels'] = labels_train
-            val_dict['signatures'] = patches_val
+            val_dict['patches'] = patches_val
             val_dict['labels'] = labels_val
 
             return train_dict, val_dict
 
         else:
 
-            tot_len = len(selected_pixels['signatures'])
-            items = list(zip(selected_pixels['signatures'], selected_pixels['labels']))
+            tot_len = len(selected_pixels['patches'])
+            items = list(zip(selected_pixels['patches'], selected_pixels['labels']))
             random.shuffle(items)
 
             patches, labels = zip(*items)
