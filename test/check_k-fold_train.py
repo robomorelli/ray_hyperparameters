@@ -55,6 +55,7 @@ def main():
                 w = int(y.shape[1] / 2)
                 h = int(y.shape[2] / 2)
                 central_pixel = y[:, w, h].type(torch.LongTensor).to(device)
+                print("shapeeeeeeeeee", y_hat.shape, central_pixel.shape)
 
                 # Compute and print loss
                 loss = criterion_list[fold](y_hat, central_pixel.float())

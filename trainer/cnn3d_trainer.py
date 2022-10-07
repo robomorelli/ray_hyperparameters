@@ -152,13 +152,10 @@ class trainCNN3D(tune.Trainable):
 
                     # forward + backward + optimize
                     model = self.model_list[fold]
-                    print(model)
                     y_hat = model(x).squeeze(-1)
                     w = int(y.shape[1] / 2)
                     h = int(y.shape[2] / 2)
                     central_pixel = y[:, w, h].type(torch.LongTensor).to(self.device)
-
-                    print('sizessssssssssssssssssss', y_hat.shape, central_pixel.shape)
 
                     # Compute and print loss
                     loss = self.criterion_list[fold](y_hat, central_pixel.float())
@@ -238,99 +235,41 @@ class trainCNN3D(tune.Trainable):
                 self.optimizer_list[fold] = optimizer
                 self.scheduler_list[fold] = scheduler
 
-        if metrics_flag:
-            overall_train_loss = np.mean(fold_overall_train_loss)
-            overall_val_loss = np.mean(fold_overall_val_loss)
-            overall_f1_score = np.mean(fold_overall_val_loss)
-            overall_acc = np.mean(fold_overall_val_acc)
-            print("val Loss: {} and f1_score {} for overall fold".format(overall_val_loss, overall_f1_score))
-            if overall_val_loss < self.best_val_loss:
-                self.best_val_loss = overall_val_loss
-                return {"train_loss": overall_train_loss, "val_loss": overall_val_loss, "val_acc":overall_acc ,
-                        "val_f1": overall_f1_score, "should_checkpoint": True}
+            if metrics_flag:
+                overall_train_loss = np.mean(fold_overall_train_loss)
+                overall_val_loss = np.mean(fold_overall_val_loss)
+                overall_f1_score = np.mean(fold_overall_val_loss)
+                overall_acc = np.mean(fold_overall_val_acc)
+                print("val Loss: {} and f1_score {} for overall fold".format(overall_val_loss, overall_f1_score))
+                if overall_val_loss < self.best_val_loss:
+                    self.best_val_loss = overall_val_loss
+                    return {"train_loss": overall_train_loss, "val_loss": overall_val_loss, "val_acc":overall_acc ,
+                            "val_f1": overall_f1_score, "should_checkpoint": True}
+                else:
+                    overall_train_loss = np.mean(fold_overall_train_loss)
+                    overall_val_loss = np.mean(fold_overall_val_loss)
+                    return {"train_loss": overall_train_loss,
+                            "val_loss": overall_val_loss, "val_acc": overall_acc, "val_f1": overall_f1_score}
+
             else:
                 overall_train_loss = np.mean(fold_overall_train_loss)
                 overall_val_loss = np.mean(fold_overall_val_loss)
-                return {"train_loss": overall_train_loss,
-                        "val_loss": overall_val_loss, "val_acc": overall_acc, "val_f1": overall_f1_score}
-
-        else:
-            overall_train_loss = np.mean(fold_overall_train_loss)
-            overall_val_loss = np.mean(fold_overall_val_loss)
-            print('validation_loss {} in for overall'.format(self.val_loss_cpu, fold))
-            self.scheduler_list[fold].step(val_loss)
-            if self.val_loss_cpu < self.best_val_loss:
-                self.best_val_loss = self.val_loss_cpu
-                return {"train_loss": overall_train_loss, "val_loss": overall_val_loss,
-                         "should_checkpoint": True}
-            else:
-                return {"train_loss": overall_train_loss, "val_loss": overall_val_loss}
-
+                print('validation_loss {} in for overall'.format(self.val_loss_cpu, fold))
+                self.scheduler_list[fold].step(val_loss)
+                if self.val_loss_cpu < self.best_val_loss:
+                    self.best_val_loss = self.val_loss_cpu
+                    return {"train_loss": overall_train_loss, "val_loss": overall_val_loss,
+                             "should_checkpoint": True}
+                else:
+                    return {"train_loss": overall_train_loss, "val_loss": overall_val_loss}
 
 
     def testCNN3D(self, checkpoint_dir=None):
         ###############################################
-        # eval mode for evaluation on validation dataset
+        # to implement
         ###############################################
-        # Validation loss
-        temp_test_loss = 0.0
-        test_steps = 0
-        self.model.eval()
-        for i, (x, y) in enumerate(self.testloader, 0):
-            with torch.no_grad():
-                #f1_score = kwargs["f1_score"]
+        raise NotImplementedError
 
-                x = x.float().to(self.device)
-                y = y.float().to(self.device)
-
-                # forward + backward + optimize
-                y_hat = self.model(x).squeeze(-1)
-                w = int(y.shape[1] / 2)
-                h = int(y.shape[2] / 2)
-                central_pixel = y[:, w, h].type(torch.LongTensor).to(self.device)
-
-                # Compute and print loss
-                temp_test_loss += self.criterion(y_hat, central_pixel.float())
-                test_steps += 1
-
-                if i == 0:
-                    y_hat_tensor = torch.zeros_like(y_hat)
-                    central_pixel_tensor = torch.zeros_like(central_pixel)
-                else:
-                    y_hat_tensor = torch.cat((y_hat_tensor.cpu(), y_hat.detach().cpu()), 0)
-                    central_pixel_tensor = torch.cat((central_pixel_tensor.cpu(), central_pixel.detach().cpu()), 0)
-
-        test_loss = temp_test_loss / test_steps
-        test_loss_cpu = test_loss.cpu().item()
-
-        try:
-            acc = self.acc(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
-            f1_score = self.f1_score(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
-            print("test Loss: {} and test_f1_score {}".format(test_loss_cpu, f1_score))
-            return {"test_loss": test_loss_cpu, "test_acc": acc, "test_f1": f1_score}
-        except:
-            print("test Loss: {}".format(test_loss_cpu))
-            return {"test_loss": test_loss_cpu}
-
-    #def k_fold_eval(self):
-    #
-            #    for fold, (train_idx, test_idx) in enumerate(kfold.split(dataset)):
-            #        print('------------fold no---------{}----------------------'.format(fold))
-            #        train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
-            #        test_subsampler = torch.utils.data.SubsetRandomSampler(test_idx)
-            #
-            #        trainloader = torch.utils.data.DataLoader(
-            #            dataset,
-            #            batch_size=batch_size, sampler=train_subsampler)
-            #        testloader = torch.utils.data.DataLoader(
-            #            dataset,
-            #            batch_size=batch_size, sampler=test_subsampler)
-            #
-            #        model.apply(reset_weights)
-
-            #        for epoch in range(1, epochs + 1):
-            #            train(fold, model, device, trainloader, optimizer, epoch)
-            #   test(fold, model, device, testloader)
 
 
     def save_checkpoint(self, checkpoint_dir):
@@ -343,10 +282,10 @@ class trainCNN3D(tune.Trainable):
                 'optimizer_state_dict': self.optimizer_list[fold].state_dict(),
                 'loss': self.val_loss_cpu,
                 'cfg': self.cfg
-            }, f"{checkpoint_dir}/model.pt")
-            checkpoint_path_list.append(os.path.join(checkpoint_dir, "model_{}.pt".format(fold)))
+            }, f"{checkpoint_dir}/model_{fold}.pt")
+            #checkpoint_path_list.append(os.path.join(checkpoint_dir, "model_{}.pt".format(fold)))
         #torch.save(self.model.state_dict(), checkpoint_path)
-        return checkpoint_path_list
+        return os.path.join(checkpoint_dir, "model.pt".format(fold))
 
     def load_checkpoint(self, checkpoint_path):
         checkpoint = torch.load(checkpoint_path)
