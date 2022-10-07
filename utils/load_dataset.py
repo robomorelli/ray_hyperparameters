@@ -38,10 +38,12 @@ def get_dataset(cfg, **kwargs):
     if cfg.dataset.name == "albania_supervised":
         # Preprocessing step (load mixed coords of negative and positive)
         open_file = open(os.path.join(root + cfg.dataset.coords_path), "rb")
+        #open_file = open(os.path.join(cfg.dataset.coords_path), "rb")
         selected_pixels = pickle.load(open_file)
         open_file.close()
 
         open_file = open(os.path.join(root + cfg.dataset.test_coords_path), "rb")
+        #open_file = open(os.path.join(cfg.dataset.test_coords_path), "rb")
         test_selected_pixels = pickle.load(open_file)
         open_file.close()
 
@@ -57,7 +59,7 @@ def get_dataset(cfg, **kwargs):
             c_train, l_train, path_train, c_val, l_val, path_val = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split)
             c_test, l_test, path_test = prep_albania(test_selected_pixels, test=True)
 
-            dataset_train = Supervised( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+            dataset_train = Supervised(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
                                                 # From Kwargs:
                                                patch_size=kwargs['patch_size'], batch_size=kwargs['batch_size'],
                                                transform=transform, samples_coords_train=c_train,
@@ -83,31 +85,52 @@ def get_dataset(cfg, **kwargs):
             #test_dict = prep_albania(test_selected_pixels, test=True)
 
             dataset_train = Supervised_dictionary( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+                                                   transform=transform,
                                                 # From Kwargs:
-                                               patch_size=kwargs['patch_size'], batch_size=kwargs['batch_size'],
-                                               transform=transform, train_dict=train_dict, val_dict=val_dict)
+                                                train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size'])
             dataset_val = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+                                                transform=transform,
                                                 # From Kwargs:
-                                               patch_size= kwargs['patch_size'], batch_size = kwargs['batch_size'],
-                                               transform=transform, val_dict=val_dict, train_dict=train_dict)
+                                               patch_size= kwargs['patch_size'],
+                                                val_dict=val_dict, train_dict=train_dict)
             dataset_test = Supervised_dictionary(#patch_size=cfg.dataset.patch_size
                                                 n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
-                                                test=True,
+                                                test=True, transform=transform,
                                                 # From Kwargs:
-                                                patch_size=kwargs['patch_size'], batch_size = kwargs['batch_size'],
-                                                transform=transform, test_dict=test_selected_pixels)
-
+                                                patch_size=kwargs['patch_size'],
+                                                 test_dict=test_selected_pixels)
 
         #if cfg.opt.num_workers is None:
         #    num_workers = mp.cpu_count()
         #else:
         #    num_workers = cfg.opt.num_workers
+        trainloader_list = []
+        testloader_list = []
+        weights_list = []
 
         if cfg.opt.k_fold_cv:
             kfold = KFold(n_splits=cfg.opt.k_fold_cv, shuffle=True)
             dataset = ConcatDataset([dataset_train, dataset_val])
 
-            return dataset
+            for fold, (train_idx, test_idx) in enumerate(kfold.split(dataset)):
+                print('------------fold no---------{}----------------------'.format(fold))
+                train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
+                test_subsampler = torch.utils.data.SubsetRandomSampler(test_idx)
+
+                train_dataset = DataLoader(
+                    dataset, num_workers=cfg.opt.num_workers,
+                                batch_size=kwargs['batch_size'],
+                                sampler=train_subsampler)
+                trainloader_list.append(train_dataset)
+                testloader_list.append(torch.utils.data.DataLoader(
+                    dataset, num_workers=cfg.opt.num_workers,
+                                batch_size=kwargs['batch_size'],
+                                sampler=test_subsampler))
+
+                weights_list.append(get_class_weights(dataset_train))
+                print('k fold validation')
+
+            return trainloader_list, testloader_list, weights_list,  metrics
 
         else:
 
@@ -129,7 +152,7 @@ def get_class_weights(dataset):
         weights = [1 / (x / np.sum(class_frequency)) for x in class_frequency]
         weights = torch.FloatTensor(weights / np.max(weights))
         if dataset.class_number == 1:
-            pos_weight = (weights[1]/weights[0])/5
+            pos_weight = (weights[1]/weights[0])
             print(f"Class frequency: {class_frequency}")
             print(f"Class weights: {weights}")
             print(f"reweight: {pos_weight}")

@@ -105,11 +105,10 @@ class Supervised_dictionary(torch.utils.data.Dataset):
 
         if self.p_size:
             batch, labels = self.dict['signatures'][index], self.dict['labels'][index]
-            central_pixel = (batch.shape[0] // 2) + 1
-
+            central_pixel = (batch.shape[1] // 2)
             if self.p_size > 1:
-                batch = batch[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
-                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1, :]
+                batch = batch[:, central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
+                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
                 labels = labels[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
                 , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
             else:
