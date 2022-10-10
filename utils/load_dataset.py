@@ -79,12 +79,14 @@ def get_dataset(cfg, **kwargs):
                                                 transform=transform, samples_coords_test=c_test,
                                                 labels_test=l_test, patch_path_test=path_test)
         else:
-
+            if cfg.opt.k_fold_cv:
+                cfg.dataset.train_split = 1 - 1/cfg.opt.k_fold_cv
+                print("train split {}".format(cfg.dataset.train_split))
             train_dict, val_dict = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split,
                                                 from_dictionary=cfg.dataset.from_dictionary)
             #test_dict = prep_albania(test_selected_pixels, test=True)
 
-            dataset_train = Supervised_dictionary( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+            dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
                                                    transform=transform,
                                                 # From Kwargs:
                                                 train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size'])
@@ -104,11 +106,12 @@ def get_dataset(cfg, **kwargs):
         #    num_workers = mp.cpu_count()
         #else:
         #    num_workers = cfg.opt.num_workers
-        trainloader_list = []
-        testloader_list = []
-        weights_list = []
 
         if cfg.opt.k_fold_cv:
+            trainloader_list = []
+            testloader_list = []
+            weights_list = []
+
             kfold = KFold(n_splits=cfg.opt.k_fold_cv, shuffle=True)
             dataset = ConcatDataset([dataset_train, dataset_val])
 

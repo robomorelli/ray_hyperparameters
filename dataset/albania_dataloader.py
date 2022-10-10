@@ -75,12 +75,11 @@ class Supervised(torch.utils.data.Dataset):
 
 
 class Supervised_dictionary(torch.utils.data.Dataset):
-    def __init__(self, patch_size=1, n_channels=24,
+    def __init__(self, n_channels=24,
                   class_number=0, train=True, test=False, transform=None, ae=False,
                  **kwargs):
 
         self.n_channels = n_channels
-        self.p_size = patch_size
         self.class_number = class_number
         self.transform = transform
         self.ae = ae #not used so far
@@ -104,7 +103,7 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         """
 
         if self.p_size:
-            batch, labels = self.dict['signatures'][index], self.dict['labels'][index]
+            batch, labels = self.dict['patches'][index], self.dict['labels'][index]
             central_pixel = (batch.shape[1] // 2)
             if self.p_size > 1:
                 batch = batch[:, central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
@@ -116,9 +115,9 @@ class Supervised_dictionary(torch.utils.data.Dataset):
                 labels = labels[central_pixel, central_pixel]
 
         else:
-            batch, labels = self.dict['signatures'][index], self.dict['labels'][index]
+            batch, labels = self.dict['patches'][index], self.dict['labels'][index]
 
         return batch, labels
 
     def __len__(self):
-        return len(self.dict['signatures'])
+        return len(self.dict['patches'])
