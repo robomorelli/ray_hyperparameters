@@ -109,8 +109,8 @@ class Supervised_dictionary(torch.utils.data.Dataset):
             central_pixel = (batch.shape[1] // 2)
 
             if self.p_size > 1:
-                batch = batch[:, central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
-                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
+                batch = batch[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
+                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1, :]
                 labels = labels[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
                 , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
 
@@ -121,8 +121,8 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         else:
             batch, labels = self.dict['patches'][index], self.dict['labels'][index]
 
-        #images = batch.transpose(2, 0, 1)
-        #print('sizesssss',batch.shape)
+        batch = batch.transpose(2, 0, 1)
+
         return batch, labels
 
     def __len__(self):

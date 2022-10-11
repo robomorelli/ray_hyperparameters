@@ -35,12 +35,12 @@ def main(args):
         resources_per_trial = {"cpu": cfg.resources.cpu_trial}
 
 
-    sched = ASHAScheduler(metric=cfg.opt.tune_report, mode="min", max_t=400)
+    sched = ASHAScheduler(metric=cfg.opt.tune_report, mode="min", max_t=1000)
     analysis = tune.run(trainer,
                         scheduler=sched,
                         stop={"training_iteration": 10 ** 16},
                         resources_per_trial=resources_per_trial,
-                        num_samples=200,
+                        num_samples=1,
                         checkpoint_at_end=True, #otherwise it fails on multinode?
                         #checkpoint_freq=1,
                         local_dir="~/ray_results",
@@ -49,26 +49,7 @@ def main(args):
 
     print("Best config is:", analysis.get_best_config(metric="val_loss", mode="min"))
 
-    #print("Best trial final validation loss: {}".format(
-    #    best_trial.last_result["loss"]))
-    #print("Best trial final validation accuracy: {}".format(
-    #    best_trial.last_result["accuracy"]))
 
-    #best_trained_model = Net(best_trial.config["l1"], best_trial.config["l2"])
-    #device = "cpu"
-    #if torch.cuda.is_available():
-    #    device = "cuda:0"
-    #    if gpus_per_trial > 1:
-    #        best_trained_model = nn.DataParallel(best_trained_model)
-    #best_trained_model.to(device)
-
-    #best_checkpoint_dir = best_trial.checkpoint.value
-    #model_state, optimizer_state = torch.load(os.path.join(
-    #    best_checkpoint_dir, "checkpoint"))
-    #best_trained_model.load_state_dict(model_state)
-
-    #test_acc = test_accuracy(best_trained_model, device)
-    #print("Best trial test set accuracy: {}".format(test_acc))
 
 if __name__ == "__main__":
     # ip_head and redis_passwords are set by ray cluster shell scripts

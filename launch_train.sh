@@ -7,7 +7,7 @@
 #PBS -k oe
 #PBS -m e
 #PBS -M roberto.morelli.ext@leonardocompany.com
-#PBS -l select=5:ngpus=4:ncpus=48
+#PBS -l select=1:ngpus=4:ncpus=48
 
 ##PBS_O_WORKDIR = "${PBS_O_WORKDIR}/artificial_intelligence/repos/fdir"
 ##echo "PBS WORKDIR: {$PBS_O_WORKDIR}"
