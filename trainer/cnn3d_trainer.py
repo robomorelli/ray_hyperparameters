@@ -117,12 +117,6 @@ class trainCNN3D(tune.Trainable):
         #test_results = self.testCNN3D(checkpoint_dir=None)
         #result.update(test_results)
         print('these are the results dict',result)
-        #result = {"val_loss": val_loss, "test_loss": test_loss}
-
-        #if detect_instance_preemption():
-        #    result.update(should_checkpoint=True)
-        # acc = test(self.models, self.test_loader, self.device)
-        # don't call report here!
         return result
 
     def trainCNN3D(self, checkpoint_dir=None):
@@ -238,7 +232,7 @@ class trainCNN3D(tune.Trainable):
             if metrics_flag:
                 overall_train_loss = np.mean(fold_overall_train_loss)
                 overall_val_loss = np.mean(fold_overall_val_loss)
-                overall_f1_score = np.mean(fold_overall_val_loss)
+                overall_f1_score = np.mean(fold_overall_val_f1)
                 overall_acc = np.mean(fold_overall_val_acc)
                 print("val Loss: {} and f1_score {} for overall fold".format(overall_val_loss, overall_f1_score))
                 if overall_val_loss < self.best_val_loss:
@@ -265,11 +259,70 @@ class trainCNN3D(tune.Trainable):
 
 
     def testCNN3D(self, checkpoint_dir=None):
-        ###############################################
-        # to implement
-        ###############################################
-        raise NotImplementedError
+        fold_overall_test_loss = []
+        fold_overall_test_f1 = []
+        fold_overall_test_acc = []
+        for fold, val_dl in enumerate(self.valloader_list):
+            temp_test_loss = 0.0
+            test_steps = 0
+            model = self.model_list[fold].eval()
+            for i, (x, y) in enumerate(val_dl, 0):
+                with torch.no_grad():
+                    x = x.float().to(self.device)
+                    y = y.float().to(self.device)
 
+                    # forward + backward + optimize
+                    y_hat = model(x).squeeze(-1)
+
+                    w = int(y.shape[1] / 2)
+                    h = int(y.shape[2] / 2)
+                    central_pixel = y[:, w, h].type(torch.LongTensor).to(self.device)
+
+                    if i == 0:
+                        y_hat_tensor = torch.zeros_like(y_hat)
+                        central_pixel_tensor = torch.zeros_like(central_pixel)
+                    else:
+                        y_hat_tensor = torch.cat((y_hat_tensor.cpu(), y_hat.detach().cpu()), 0)
+                        central_pixel_tensor = torch.cat((central_pixel_tensor.cpu(), central_pixel.detach().cpu()), 0)
+
+                    # Compute and print loss
+                    temp_test_loss += self.criterion_list[fold](y_hat, central_pixel.float())
+
+                    y_hat_tensor = torch.cat((y_hat_tensor.cpu(), y_hat.detach().cpu()), 0)
+                    central_pixel_tensor = torch.cat((central_pixel_tensor.cpu(), central_pixel.detach().cpu()), 0)
+                    test_steps += 1
+
+            test_loss = temp_test_loss / test_steps
+            self.test_loss_cpu = test_loss.cpu().item()
+            fold_overall_test_loss.append(self.test_loss_cpu)
+
+            scheduler = self.scheduler_list[fold]
+            try:
+                f1_score = self.f1_score(y_hat_tensor.to(self.device),
+                                         central_pixel_tensor.to(self.device)).cpu().item()
+                acc = self.acc(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
+                print("test Loss: {} and test f1_score {} for fold {}".format(self.test_loss_cpu, f1_score, fold))
+                fold_overall_test_acc.append(acc)
+                fold_overall_test_f1.append(f1_score)
+                metrics_flag = True
+
+            except:
+                print('test_loss {} in fold {}'.format(self.test_loss_cpu, fold))
+                metrics_flag = False
+
+
+        if metrics_flag:
+            overall_test_loss = np.mean(fold_overall_test_loss)
+            overall_f1_score = np.mean(fold_overall_test_f1)
+            overall_acc = np.mean(fold_overall_test_acc)
+            print("test Loss: {} and f1_score {} for overall fold".format(overall_test_loss, overall_f1_score))
+            return {"test_loss": overall_test_loss, "test_acc": overall_acc,
+                        "test_f1": overall_f1_score}
+
+        else:
+            overall_test_loss = np.mean(fold_overall_test_loss)
+            print('test_loss {} in for overall'.format(self.test_loss_cpu, fold))
+            return {"test_loss": overall_test_loss}
 
 
     def save_checkpoint(self, checkpoint_dir):

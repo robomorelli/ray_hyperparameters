@@ -117,6 +117,8 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         else:
             batch, labels = self.dict['patches'][index], self.dict['labels'][index]
 
+        batch = np.transpose(batch, (2,0,1))
+
         return batch, labels
 
     def __len__(self):
