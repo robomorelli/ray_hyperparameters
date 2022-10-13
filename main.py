@@ -35,13 +35,13 @@ def main(args):
         resources_per_trial = {"cpu": cfg.resources.cpu_trial}
 
 
-    sched = ASHAScheduler(metric=cfg.opt.tune_report, mode="min", max_t=1000)
+    sched = ASHAScheduler(metric=cfg.opt.tune_report, mode="min", max_t=400)
     analysis = tune.run(trainer,
                         scheduler=sched,
                         stop={"training_iteration": 10 ** 16},
                         resources_per_trial=resources_per_trial,
-                        num_samples=1,
-                        checkpoint_at_end=True, #otherwise it fails on multinode?
+                        num_samples=200,
+                        checkpoint_at_end=False, #otherwise it fails on multinode?
                         #checkpoint_freq=1,
                         local_dir="~/ray_results",
                         name="{}/{}".format(cfg.model.name, date.replace('/', '-')),
