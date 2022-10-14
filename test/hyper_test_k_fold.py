@@ -9,7 +9,7 @@ from config import *
 import numpy as np
 
 def main():
-    cfg = OmegaConf.load(Path(config_path).parent.parent.as_posix() + '/train_configurations/test.yaml' )
+    cfg = OmegaConf.load(Path(config_path).parent.parent.as_posix() + '/train_configurations/test_cnn3d.yaml' )
     cfg.dataset.coords_path = "/davinci-1/home/morellir/artificial_intelligence/repos/fdir/data/hyper/albania/mosaic/train_val_dict_merged_12k_psize15.pkl"
     cfg.dataset.test_coords_path = "/davinci-1/home/morellir/artificial_intelligence/repos/fdir/data/hyper/albania/mosaic/train_val_dict_merged_12k_psize15.pkl"
     trainloader_list, valloader_list, weights_list, metrics = get_dataset(cfg, batch_size=cfg.opt.batch_size,patch_size=cfg.dataset.patch_size,
