@@ -78,7 +78,7 @@ class Supervised(torch.utils.data.Dataset):
 class Supervised_dictionary(torch.utils.data.Dataset):
     def __init__(self, n_channels=24,
                   class_number=0, train=True, test=False, transform=None, ae=False,
-                 augmentation=0
+                 augmentation=0,
                  **kwargs):
 
         self.n_channels = n_channels
@@ -125,8 +125,9 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         if self.augmentation:
             # channel should be in the firt position (x, h, w)
             r = np.random.randint(4)
-            degree = self.angle_list[r]
-            batch = rotate(batch, degree)
+            #degree = self.angle_list[r]
+            #batch = rotate(batch, degree)
+            batch = np.rot90(batch, r, [1,2]).copy()
 
         return batch, labels
 

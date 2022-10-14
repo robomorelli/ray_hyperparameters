@@ -93,8 +93,9 @@ def get_dataset(cfg, **kwargs):
                 dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
                                                        transform=transform,
                                                     # From Kwargs:
-                                                    train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size'],
-                                                    augmentation=cfg.opt.augmentation)
+                                                    train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size']
+                                                    , augmentation=cfg.opt.augmentation)
+
             else:
                 dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
                                                        transform=transform,
@@ -159,19 +160,16 @@ def get_dataset(cfg, **kwargs):
 
             sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight))
 
-            if cfg.opt.augmentation:
-                train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
-                                      num_workers=1, sampler=sampler, transform=transform_aug)
-            else:
-                train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
-                                      num_workers=1, sampler=sampler, transform=transform_aug)
+
+            train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
+                                      num_workers=1, sampler=sampler)
 
             val_loader = DataLoader(dataset_val, batch_size=kwargs['batch_size'],
-                                      num_workers=1, sampler=sampler)
+                                      num_workers=1)
             test_loader = DataLoader(dataset_val, batch_size=kwargs['batch_size'],
-                                      num_workers=1, sampler=sampler)
+                                      num_workers=1)
 
-            return train_loader, val_loader, test_loader, class_sample_count, metrics
+            return train_loader, val_loader, class_sample_count, metrics
 
         else:
 
