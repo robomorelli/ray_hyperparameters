@@ -91,7 +91,7 @@ def get_dataset(cfg, **kwargs):
                                                        transform=transform,
                                                     # From Kwargs:
                                                     train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size']
-                                                    , augmentation=cfg.opt.augmentation)
+                                                    , augmentation=kwargs['augmentation'])
 
             else:
                 dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
@@ -114,9 +114,6 @@ def get_dataset(cfg, **kwargs):
 
         if kwargs['oversampling']:
 
-            # kfold = KFold(n_splits=cfg.opt.k_fold_cv, shuffle=True)
-            # dataset = ConcatDataset([dataset_train, dataset_val])
-            # weights = get_class_weights(dataset_train)
             y = np.array([int(x[1][0][0]) for x in list(dataset_train)])
             class_sample_count = np.array([len(np.where(y == t)[0]) for t in np.unique(y)])
             weight = 1. / class_sample_count

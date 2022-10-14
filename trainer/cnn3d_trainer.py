@@ -30,6 +30,7 @@ class trainCNN3D(tune.Trainable):
         self.patch_size = config['patch_size']
         self.augmentation = config['augmentation']
         self.oversampling = config['oversampling']
+        self.optimizer_name = config['optimizer']
 
         self.best_val_loss = 10**16
 
@@ -38,49 +39,39 @@ class trainCNN3D(tune.Trainable):
         self.cfg['model']['filter_size'] = self.filter_size
         self.cfg['model']['act'] = self.act
         self.cfg['dataset']['patch_size'] = self.patch_size
+        self.cfg['opt']['optimizer'] = self.optimizer_name
 
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
+        self.trainloader, self.valloader, self.testloader, self.weights, self.metrics = get_dataset(self.cfg, batch_size=self.batch_size,
+                                                                        patch_size=self.patch_size, from_dictionary=self.cfg.dataset.from_dictionary,
+                                                                        oversampling = self.oversampling, augmentation=self.augmentation)
+        self.model = get_model(self.cfg, num_filter=self.num_filter, act=self.act,  filter_size=self.filter_size).to(self.device)
+        optimizer_dict = {'adam':torch.optim.Adam(self.model.parameters(), lr=self.lr),
+                          'sgd':torch.optim.SGD(self.model.parameters(), lr=self.lr),
+                          'adadelta': torch.optim.Adadelta(self.model.parameters(), lr=self.lr),
 
-        if self.cfg.opt.k_fold_cv:
-            self.trainloader_list, self.valloader_list, self.weights_list, self.metrics = get_dataset(self.cfg, batch_size=self.batch_size,
-                                                                            patch_size=self.patch_size, from_dictionary=self.cfg.dataset.from_dictionary,
-                                                                            augmentation=self.augmentation, oversampling=self.oversampling)
-            self.model_list = [get_model(self.cfg, num_filter=self.num_filter, act=self.act, filter_size=self.filter_size).to(
-                self.device) for i in range(self.cfg.opt.k_fold_cv)]
-            self.optimizer_list = [torch.optim.Adam(model.parameters(), lr=self.lr) for model in self.model_list]
-            self.scheduler_list = [torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer_list[i], 'min', factor=0.8,
-                                                                        patience=self.patience
-                                                                        , threshold=0.0001, threshold_mode='rel',
-                                                                        cooldown=0, min_lr=9e-8, verbose=True) for i in range(len(self.model_list))]
-            if self.class_number > 1:
-                self.criterion_list = [nn.CrossEntropyLoss(weight=self.weights_list[i]).to(self.device) for i in range(len(self.model_list))]
+                          }
+        self.optimizer = optimizer_dict[self.optimizer_name]
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8,
+                                                                    patience=self.patience
+                                                                    , threshold=0.0001, threshold_mode='rel',
+                                                                    cooldown=0, min_lr=9e-8, verbose=True)
+
+        if self.cfg.model.class_number > 1:
+            if self.oversampling:
+                self.criterion = nn.CrossEntropyLoss().to(self.device)
             else:
-                self.criterion_list =  [nn.BCEWithLogitsLoss(pos_weight=self.weights_list[i]).to(self.device) for i in range(len(self.model_list))]
-
-            if "accuracy" in self.metrics:
-                self.acc = self.model_list[0].acc.to(self.device)
-            if "f1_score" in self.metrics:
-                self.f1_score = self.model_list[0].f1_score.to(self.device)
-
-        else:
-            self.trainloader, self.valloader, self.testloader, self.weights, self.metrics = get_dataset(self.cfg, batch_size=self.batch_size,
-                                                                            patch_size=self.patch_size, from_dictionary=self.cfg.dataset.from_dictionary)
-            self.model = get_model(self.cfg, num_filter=self.num_filter, act=self.act,  filter_size=self.filter_size).to(self.device)
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8,
-                                                                        patience=self.patience
-                                                                        , threshold=0.0001, threshold_mode='rel',
-                                                                        cooldown=0, min_lr=9e-8, verbose=True)
-
-            if self.class_number > 1:
                 self.criterion = nn.CrossEntropyLoss(weight=self.weights).to(self.device)
+        else:
+            if self.oversampling:
+                self.criterion = nn.BCEWithLogitsLoss().to(self.device)
             else:
                 self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.weights).to(self.device)
 
-            if "accuracy" in self.metrics:
-                self.acc = self.model.acc.to(self.device)
-            if "f1_score" in self.metrics:
-                self.f1_score = self.model.f1_score.to(self.device)
+        if "accuracy" in self.metrics:
+            self.acc = self.model.acc.to(self.device)
+        if "f1_score" in self.metrics:
+            self.f1_score = self.model.f1_score.to(self.device)
 
 
  #use sigmoid under the hood >>> 1 neuron (1 class)
@@ -118,8 +109,8 @@ class trainCNN3D(tune.Trainable):
         self.current_ip()
 
         result = self.trainCNN3D(checkpoint_dir=None)
-        #test_results = self.testCNN3D(checkpoint_dir=None)
-        #result.update(test_results)
+        test_results = self.testCNN3D(checkpoint_dir=None)
+        result.update(test_results)
         print('these are the results dict',result)
         return result
 
@@ -131,157 +122,55 @@ class trainCNN3D(tune.Trainable):
         # each step should be last all the epoch times if you don't return after validation step
         for epoch in range(self.epochs):
             self.current_epoch = epoch
-            #model.apply(reset_weights)
-            fold_overall_train_loss = []
-            fold_overall_val_loss = []
-            fold_overall_val_f1 = []
-            fold_overall_val_acc = []
-            for fold, (train_dl, val_dl) in enumerate(zip(self.trainloader_list, self.valloader_list)):
-                temp_train_loss = 0.0
-                train_steps = 0
-                self.model_list[fold].train()
-                for i, (x, y) in enumerate(train_dl):
+            temp_train_loss = 0.0
+            train_steps = 0
+            self.model.train()
+            for i, (x, y) in enumerate(self.trainloader, 0):
 
-                    x = x.float().to(self.device)
-                    y = y.float().to(self.device)
+                x = x.float().to(self.device)
+                y = y.float().to(self.device)
 
-                    # zero the parameter gradients
-                    self.optimizer_list[fold].zero_grad()
+                # zero the parameter gradients
+                self.optimizer.zero_grad()
 
-                    # forward + backward + optimize
-                    model = self.model_list[fold]
-                    y_hat = model(x).squeeze(-1)
-                    w = int(y.shape[1] / 2)
-                    h = int(y.shape[2] / 2)
-                    central_pixel = y[:, w, h].type(torch.LongTensor).to(self.device)
+                # forward + backward + optimize
+                y_hat = self.model(x).squeeze(-1)
+                w = int(y.shape[1] / 2)
+                h = int(y.shape[2] / 2)
+                central_pixel = y[:, w, h].type(torch.LongTensor).to(self.device)
 
-                    # Compute and print loss
-                    loss = self.criterion_list[fold](y_hat, central_pixel.float())
-                    loss.backward()
-                    optimizer = self.optimizer_list[fold]
-                    optimizer.step()
+                # Compute and print loss
+                loss = self.criterion(y_hat, central_pixel.float())
+                loss.backward()
+                self.optimizer.step()
 
-                    temp_train_loss += loss
-                    train_steps += 1
-                    if i % 10 == 0:
-                        print(" training Loss: {} on fold {}".format(loss.item(), fold))
+                temp_train_loss += loss
+                train_steps += 1
+                if i % 10 == 0:
+                    print(" training Loss: {}".format(loss.item()))
 
-                train_loss = temp_train_loss / train_steps
-                self.train_loss_cpu = train_loss.cpu().item()
-                fold_overall_train_loss.append(self.train_loss_cpu)  # buffer for each fold train loss at the end of the epoch
-                ###############################################
-                # eval mode for evaluation on validation dataset
-                ###############################################
-                # Validation loss
-                temp_val_loss = 0.0
-                val_steps = 0
-                y_hat_tensor = torch.zeros_like(y_hat)
-                central_pixel_tensor = torch.zeros_like(central_pixel)
-                model.eval()
-                for i, (x, y) in enumerate(val_dl, 0):
-                    with torch.no_grad():
-                        x = x.float().to(self.device)
-                        y = y.float().to(self.device)
-
-                        # forward + backward + optimize
-                        y_hat = model(x).squeeze(-1)
-
-                        w = int(y.shape[1] / 2)
-                        h = int(y.shape[2] / 2)
-                        central_pixel = y[:, w, h].type(torch.LongTensor).to(self.device)
-
-                        if i == 0:
-                            y_hat_tensor = torch.zeros_like(y_hat)
-                            central_pixel_tensor = torch.zeros_like(central_pixel)
-                        else:
-                            y_hat_tensor = torch.cat((y_hat_tensor.cpu(), y_hat.detach().cpu()), 0)
-                            central_pixel_tensor = torch.cat((central_pixel_tensor.cpu(), central_pixel.detach().cpu()), 0)
-
-                        # Compute and print loss
-                        temp_val_loss += self.criterion_list[fold](y_hat, central_pixel.float())
-
-                        y_hat_tensor = torch.cat((y_hat_tensor.cpu(), y_hat.detach().cpu()), 0)
-                        central_pixel_tensor = torch.cat((central_pixel_tensor.cpu(), central_pixel.detach().cpu()), 0)
-                        val_steps += 1
-
-                val_loss = temp_val_loss / val_steps
-                self.val_loss_cpu = val_loss.cpu().item()
-                fold_overall_val_loss.append(self.val_loss_cpu)
-
-                scheduler = self.scheduler_list[fold]
-                try:
-                    f1_score = self.f1_score(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
-                    acc = self.acc(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
-                    print("val Loss: {} and f1_score {} for fold {}".format(self.val_loss_cpu , f1_score, fold))
-                    scheduler.step(val_loss)
-                    fold_overall_val_acc.append(acc)
-                    fold_overall_val_f1.append(f1_score)
-                    metrics_flag=True
-
-                except:
-                    print('validation_loss {} in fold {}'.format(self.val_loss_cpu, fold))
-                    metrics_flag = False
-                    scheduler.step(val_loss)
-                    if self.val_loss_cpu < self.best_val_loss:
-                        self.best_val_loss = self.val_loss_cpu
-                        return {"train_loss": self.train_loss_cpu,
-                                "val_loss":self.val_loss_cpu, "should_checkpoint": True}
-                    else:
-                        return {"train_loss": self.train_loss_cpu, "val_loss":self.val_loss_cpu}
-
-                self.model_list[fold] = model
-                self.optimizer_list[fold] = optimizer
-                self.scheduler_list[fold] = scheduler
-
-            if metrics_flag:
-                overall_train_loss = np.mean(fold_overall_train_loss)
-                overall_val_loss = np.mean(fold_overall_val_loss)
-                overall_f1_score = np.mean(fold_overall_val_f1)
-                overall_acc = np.mean(fold_overall_val_acc)
-                print("val Loss: {} and f1_score {} for overall fold".format(overall_val_loss, overall_f1_score))
-                if overall_val_loss < self.best_val_loss:
-                    self.best_val_loss = overall_val_loss
-                    return {"train_loss": overall_train_loss, "val_loss": overall_val_loss, "val_acc":overall_acc ,
-                            "val_f1": overall_f1_score, "should_checkpoint": True}
-                else:
-                    overall_train_loss = np.mean(fold_overall_train_loss)
-                    overall_val_loss = np.mean(fold_overall_val_loss)
-                    return {"train_loss": overall_train_loss,
-                            "val_loss": overall_val_loss, "val_acc": overall_acc, "val_f1": overall_f1_score}
-
-            else:
-                overall_train_loss = np.mean(fold_overall_train_loss)
-                overall_val_loss = np.mean(fold_overall_val_loss)
-                print('validation_loss {} in for overall'.format(self.val_loss_cpu, fold))
-                self.scheduler_list[fold].step(val_loss)
-                if self.val_loss_cpu < self.best_val_loss:
-                    self.best_val_loss = self.val_loss_cpu
-                    return {"train_loss": overall_train_loss, "val_loss": overall_val_loss,
-                             "should_checkpoint": True}
-                else:
-                    return {"train_loss": overall_train_loss, "val_loss": overall_val_loss}
-
-
-    def testCNN3D(self, checkpoint_dir=None):
-        fold_overall_test_loss = []
-        fold_overall_test_f1 = []
-        fold_overall_test_acc = []
-        for fold, val_dl in enumerate(self.valloader_list):
-            temp_test_loss = 0.0
-            test_steps = 0
-            model = self.model_list[fold].eval()
-            for i, (x, y) in enumerate(val_dl, 0):
+            train_loss = temp_train_loss / train_steps
+            self.train_loss_cpu = train_loss.cpu().item()
+            ###############################################
+            # eval mode for evaluation on validation dataset
+            ###############################################
+            # Validation loss
+            temp_val_loss = 0.0
+            val_steps = 0
+            y_hat_tensor = torch.zeros_like(y_hat)
+            central_pixel_tensor = torch.zeros_like(central_pixel)
+            self.model.eval()
+            for i, (x, y) in enumerate(self.valloader, 0):
                 with torch.no_grad():
                     x = x.float().to(self.device)
                     y = y.float().to(self.device)
 
                     # forward + backward + optimize
-                    y_hat = model(x).squeeze(-1)
+                    y_hat = self.model(x).squeeze(-1)
 
                     w = int(y.shape[1] / 2)
                     h = int(y.shape[2] / 2)
                     central_pixel = y[:, w, h].type(torch.LongTensor).to(self.device)
-
                     if i == 0:
                         y_hat_tensor = torch.zeros_like(y_hat)
                         central_pixel_tensor = torch.zeros_like(central_pixel)
@@ -290,59 +179,87 @@ class trainCNN3D(tune.Trainable):
                         central_pixel_tensor = torch.cat((central_pixel_tensor.cpu(), central_pixel.detach().cpu()), 0)
 
                     # Compute and print loss
-                    temp_test_loss += self.criterion_list[fold](y_hat, central_pixel.float())
-
+                    temp_val_loss += self.criterion(y_hat, central_pixel.float())
                     y_hat_tensor = torch.cat((y_hat_tensor.cpu(), y_hat.detach().cpu()), 0)
                     central_pixel_tensor = torch.cat((central_pixel_tensor.cpu(), central_pixel.detach().cpu()), 0)
-                    test_steps += 1
+                    val_steps += 1
 
-            test_loss = temp_test_loss / test_steps
-            self.test_loss_cpu = test_loss.cpu().item()
-            fold_overall_test_loss.append(self.test_loss_cpu)
+            val_loss = temp_val_loss / val_steps
+            self.val_loss_cpu = val_loss.cpu().item()
 
-            scheduler = self.scheduler_list[fold]
             try:
-                f1_score = self.f1_score(y_hat_tensor.to(self.device),
-                                         central_pixel_tensor.to(self.device)).cpu().item()
+                f1_score = self.f1_score(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
                 acc = self.acc(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
-                print("test Loss: {} and test f1_score {} for fold {}".format(self.test_loss_cpu, f1_score, fold))
-                fold_overall_test_acc.append(acc)
-                fold_overall_test_f1.append(f1_score)
-                metrics_flag = True
-
+                print("val Loss: {} and f1_score {} and acc {}".format(self.val_loss_cpu, f1_score, acc))
+                if self.val_loss_cpu < self.best_val_loss:
+                    self.best_val_loss = self.val_loss_cpu
+                    return {"train_loss": self.train_loss_cpu,
+                            "val_loss": self.val_loss_cpu, "should_checkpoint": True}
             except:
-                print('test_loss {} in fold {}'.format(self.test_loss_cpu, fold))
-                metrics_flag = False
+                print('validation_loss {}'.format(self.val_loss_cpu))
+                if self.val_loss_cpu < self.best_val_loss:
+                    self.best_val_loss = self.val_loss_cpu
+                    return {"train_loss": self.train_loss_cpu,
+                            "val_loss": self.val_loss_cpu, "should_checkpoint": True}
+                else:
+                    return {"train_loss": self.train_loss_cpu, "val_loss": self.val_loss_cpu}
+            self.scheduler.step(val_loss)
 
 
-        if metrics_flag:
-            overall_test_loss = np.mean(fold_overall_test_loss)
-            overall_f1_score = np.mean(fold_overall_test_f1)
-            overall_acc = np.mean(fold_overall_test_acc)
-            print("test Loss: {} and f1_score {} for overall fold".format(overall_test_loss, overall_f1_score))
-            return {"test_loss": overall_test_loss, "test_acc": overall_acc,
-                        "test_f1": overall_f1_score}
+    def testCNN3D(self, checkpoint_dir=None):
+        temp_test_loss = 0.0
+        test_steps = 0
+        self.model.eval()
+        for i, (x, y) in enumerate(self.testloader):
+            with torch.no_grad():
+                x = x.float().to(self.device)
+                y = y.float().to(self.device)
 
-        else:
-            overall_test_loss = np.mean(fold_overall_test_loss)
-            print('test_loss {} in for overall'.format(self.test_loss_cpu, fold))
-            return {"test_loss": overall_test_loss}
+                # forward + backward + optimize
+                y_hat = self.model(x).squeeze(-1)
+
+                w = int(y.shape[1] / 2)
+                h = int(y.shape[2] / 2)
+                central_pixel = y[:, w, h].type(torch.LongTensor).to(self.device)
+
+                if i == 0:
+                    y_hat_tensor = torch.zeros_like(y_hat)
+                    central_pixel_tensor = torch.zeros_like(central_pixel)
+                else:
+                    y_hat_tensor = torch.cat((y_hat_tensor.cpu(), y_hat.detach().cpu()), 0)
+                    central_pixel_tensor = torch.cat((central_pixel_tensor.cpu(), central_pixel.detach().cpu()), 0)
+
+                # Compute and print loss
+                temp_test_loss += self.criterion(y_hat, central_pixel.float())
+
+                y_hat_tensor = torch.cat((y_hat_tensor.cpu(), y_hat.detach().cpu()), 0)
+                central_pixel_tensor = torch.cat((central_pixel_tensor.cpu(), central_pixel.detach().cpu()), 0)
+                test_steps += 1
+
+        test_loss = temp_test_loss / test_steps
+        self.test_loss_cpu = test_loss.cpu().item()
+        try:
+            f1_score = self.f1_score(y_hat_tensor.to(self.device),
+                                     central_pixel_tensor.to(self.device)).cpu().item()
+            acc = self.acc(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
+            print("test Loss: {} and test f1_score {}".format(self.test_loss_cpu, f1_score, acc))
+        except:
+            print('test_loss {}'.format(self.test_loss_cpu))
 
 
     def save_checkpoint(self, checkpoint_dir):
         print("this is the checkpoint dir {}".format(checkpoint_dir))
         checkpoint_path_list = []
-        for fold, model in enumerate(self.model_list):
-            torch.save({
-                'epoch': self.current_epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': self.optimizer_list[fold].state_dict(),
-                'loss': self.val_loss_cpu,
-                'cfg': self.cfg
-            }, f"{checkpoint_dir}/model_{fold}.pt")
-            #checkpoint_path_list.append(os.path.join(checkpoint_dir, "model_{}.pt".format(fold)))
-        #torch.save(self.model.state_dict(), checkpoint_path)
-        return os.path.join(checkpoint_dir, "model.pt".format(fold))
+        torch.save({
+            'epoch': self.current_epoch,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'loss': self.val_loss_cpu,
+            'cfg': self.cfg
+        }, f"{checkpoint_dir}/model.pt")
+        #checkpoint_path_list.append(os.path.join(checkpoint_dir, "model_{}.pt".format(fold)))
+    #torch.save(self.model.state_dict(), checkpoint_path)
+        return os.path.join(checkpoint_dir, "model.pt")
 
     def load_checkpoint(self, checkpoint_path):
         checkpoint = torch.load(checkpoint_path)
