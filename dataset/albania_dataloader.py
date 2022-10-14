@@ -1,6 +1,7 @@
 import numpy as np
 import torch.utils.data
 from matplotlib import pyplot as plt
+from torchvision.transforms.functional import rotate
 
 class Supervised(torch.utils.data.Dataset):
     def __init__(self, patch_size=1, n_channels=24,
@@ -77,11 +78,13 @@ class Supervised(torch.utils.data.Dataset):
 class Supervised_dictionary(torch.utils.data.Dataset):
     def __init__(self, n_channels=24,
                   class_number=0, train=True, test=False, transform=None, ae=False,
+                 augmentation=0,
                  **kwargs):
 
         self.n_channels = n_channels
         self.class_number = class_number
         self.transform = transform
+        self.augmentation = augmentation
         self.ae = ae #not used so far
 
         # From Kwargs
@@ -104,16 +107,12 @@ class Supervised_dictionary(torch.utils.data.Dataset):
 
         if self.p_size:
             batch, labels = self.dict['patches'][index], self.dict['labels'][index]
-            if batch.shape[0]==0:
-                print('sizeesssssssss wrong', batch.shape[0])
             central_pixel = (batch.shape[1] // 2)
-
             if self.p_size > 1:
-                batch = batch[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
-                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1, :]
+                batch = batch[:, central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
+                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
                 labels = labels[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
                 , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
-
             else:
                 batch = batch[central_pixel: central_pixel + 1, central_pixel:  central_pixel + 1]
                 labels = labels[central_pixel, central_pixel]
@@ -121,7 +120,12 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         else:
             batch, labels = self.dict['patches'][index], self.dict['labels'][index]
 
-        batch = batch.transpose(2, 0, 1)
+        if self.augmentation:
+            # channel should be in the firt position (x, h, w)
+            r = np.random.randint(4)
+            #degree = self.angle_list[r]
+            #batch = rotate(batch, degree)
+            batch = np.rot90(batch, r, [1,2]).copy()
 
         return batch, labels
 

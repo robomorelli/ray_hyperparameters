@@ -12,6 +12,7 @@ import numpy as np
 from omegaconf import OmegaConf
 import multiprocessing as mp
 
+
 from config import *
 
 
@@ -56,10 +57,11 @@ def get_dataset(cfg, **kwargs):
                 T.ToTensor(),
             ])
 
+        if not kwargs['from_dictionary']:
             c_train, l_train, path_train, c_val, l_val, path_val = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split)
             c_test, l_test, path_test = prep_albania(test_selected_pixels, test=True)
 
-            dataset_train = Supervised( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+            dataset_train = Supervised(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
                                                 # From Kwargs:
                                                patch_size=kwargs['patch_size'], batch_size=kwargs['batch_size'],
                                                transform=transform, samples_coords_train=c_train,
@@ -87,50 +89,43 @@ def get_dataset(cfg, **kwargs):
                                                 from_dictionary=cfg.dataset.from_dictionary)
             #test_dict = prep_albania(test_selected_pixels, test=True)
 
-            dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
-                                                   transform=transform,
-                                                # From Kwargs:
-                                                patch_size=kwargs['patch_size'], #batch_size = kwargs['batch_size'],
-                                                train_dict=train_dict, val_dict=val_dict)
+            if cfg.opt.augmentation:
+                dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+                                                       transform=transform,
+                                                    # From Kwargs:
+                                                    train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size']
+                                                    , augmentation=cfg.opt.augmentation)
+
+            else:
+                dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+                                                       transform=transform,
+                                                    # From Kwargs:
+                                                    train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size'])
+
+
             dataset_val = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
                                                 transform=transform,
                                                 # From Kwargs:
-                                               patch_size= kwargs['patch_size'], #batch_size = kwargs['batch_size'],
+                                               patch_size= kwargs['patch_size'],
                                                 val_dict=val_dict, train_dict=train_dict)
-            dataset_test = Supervised_dictionary( n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
-                                                test=True,
-                                                transform=transform,
+            dataset_test = Supervised_dictionary(#patch_size=cfg.dataset.patch_size
+                                                n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
+                                                test=True, transform=transform,
                                                 # From Kwargs:
-                                                patch_size=kwargs['patch_size'], #batch_size = kwargs['batch_size'],
+                                                patch_size=kwargs['patch_size'],
                                                  test_dict=test_selected_pixels)
 
 
-        #if cfg.opt.num_workers is None:
-        #    num_workers = mp.cpu_count()
-        #else:
-        #    num_workers = cfg.opt.num_workers
+        train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
+                                 num_workers=cfg.opt.num_workers, shuffle=True) #num_workers=num_workers,
+        val_loader = DataLoader(dataset_val,  batch_size=kwargs['batch_size'],
+                                num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
+        test_loader = DataLoader(dataset_test,  batch_size=kwargs['batch_size'],
+                                 num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
 
-        #for p in pixels:
-        #    p[-1] = "/davinci-1/work/ailab_public/20220915/Dati_LeonardoLabs/Casi_Albania_Georeferenziato/UCASI_2022_06_25_084721.cc.dc.sl.so.rc.sc.PrN288.g/mosaic"
+        weights = get_class_weights(dataset_train)
 
-        if cfg.opt.k_fold_cv:
-            kfold = KFold(n_splits=cfg.opt.k_fold_cv, shuffle=True)
-            dataset = ConcatDataset([dataset_train, dataset_val])
-
-            return dataset
-
-        else:
-
-            train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
-                                     num_workers=cfg.opt.num_workers, shuffle=True) #num_workers=num_workers,
-            val_loader = DataLoader(dataset_val,  batch_size=kwargs['batch_size'],
-                                    num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
-            test_loader = DataLoader(dataset_test,  batch_size=kwargs['batch_size'],
-                                     num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
-
-            weights = get_class_weights(dataset_train)
-
-            return train_loader, val_loader, test_loader, weights, metrics
+        return train_loader, val_loader, test_loader, weights, metrics
 
 
 def get_class_weights(dataset):
