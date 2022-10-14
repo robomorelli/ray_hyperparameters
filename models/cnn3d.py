@@ -9,11 +9,12 @@ class CNN3D(nn.Module):
         self.cfg = cfg
         self.dilation = self.cfg.model.dilation
 
+
+        # Replace all this cfg parameter with kwarg (from tune_parameter of config)
         self.n_classes = self.cfg.model.class_number
         self.in_channel = self.cfg.dataset.in_channel
         self.patch_size = self.cfg.dataset.patch_size #kwargs['num_filter']
 
-        #Replace all this cfg parameter with kwarg (from tune_parameter of config)
         self.act_dict = {'Relu':nn.ReLU, 'Elu':nn.ELU, "Selu":nn.SELU, "LRelu":nn.LeakyReLU}
         self.act = self.act_dict[kwargs['act']]
         self.num_filter = kwargs['num_filter']

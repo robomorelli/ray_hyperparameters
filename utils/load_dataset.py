@@ -50,14 +50,12 @@ def get_dataset(cfg, **kwargs):
         # use case: kwarg cames after loading data a preprocessing step (the can also come from object trainer (cnn3d trainer for example)
         #Kwargs information:
 
-
         if not kwargs['from_dictionary']:
 
             transform = T.Compose([
                 T.ToTensor(),
             ])
 
-        if not kwargs['from_dictionary']:
             c_train, l_train, path_train, c_val, l_val, path_val = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split)
             c_test, l_test, path_test = prep_albania(test_selected_pixels, test=True)
 
@@ -87,9 +85,8 @@ def get_dataset(cfg, **kwargs):
 
             train_dict, val_dict = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split,
                                                 from_dictionary=cfg.dataset.from_dictionary)
-            #test_dict = prep_albania(test_selected_pixels, test=True)
 
-            if cfg.opt.augmentation:
+            if kwargs['augmentation']:
                 dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
                                                        transform=transform,
                                                     # From Kwargs:
@@ -98,7 +95,7 @@ def get_dataset(cfg, **kwargs):
 
             else:
                 dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
-                                                       transform=transform,
+                                                       transform=transform, augmentation=cfg.opt.augmentation,
                                                     # From Kwargs:
                                                     train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size'])
 
@@ -115,17 +112,41 @@ def get_dataset(cfg, **kwargs):
                                                 patch_size=kwargs['patch_size'],
                                                  test_dict=test_selected_pixels)
 
+        if kwargs['oversampling']:
 
-        train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
-                                 num_workers=cfg.opt.num_workers, shuffle=True) #num_workers=num_workers,
-        val_loader = DataLoader(dataset_val,  batch_size=kwargs['batch_size'],
-                                num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
-        test_loader = DataLoader(dataset_test,  batch_size=kwargs['batch_size'],
-                                 num_workers=cfg.opt.num_workers, shuffle=False) #num_workers=num_workers,
+            # kfold = KFold(n_splits=cfg.opt.k_fold_cv, shuffle=True)
+            # dataset = ConcatDataset([dataset_train, dataset_val])
+            # weights = get_class_weights(dataset_train)
+            y = np.array([int(x[1][0][0]) for x in list(dataset_train)])
+            class_sample_count = np.array([len(np.where(y == t)[0]) for t in np.unique(y)])
+            weight = 1. / class_sample_count
+            samples_weight = np.array([weight[t] for t in y])
 
-        weights = get_class_weights(dataset_train)
+            sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight))
 
-        return train_loader, val_loader, test_loader, weights, metrics
+            train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
+                                      num_workers=1, sampler=sampler)
+
+            val_loader = DataLoader(dataset_val, batch_size=kwargs['batch_size'],
+                                    num_workers=1)
+            test_loader = DataLoader(dataset_val, batch_size=kwargs['batch_size'],
+                                     num_workers=1)
+            weights = get_class_weights(dataset_train)
+
+            return train_loader, val_loader, test_loader, weights, metrics
+
+        else:
+
+            train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
+                                      num_workers=cfg.opt.num_workers, shuffle=True)  # num_workers=num_workers,
+            val_loader = DataLoader(dataset_val, batch_size=kwargs['batch_size'],
+                                    num_workers=cfg.opt.num_workers, shuffle=False)  # num_workers=num_workers,
+            test_loader = DataLoader(dataset_test, batch_size=kwargs['batch_size'],
+                                     num_workers=cfg.opt.num_workers, shuffle=False)  # num_workers=num_workers,
+            weights = get_class_weights(dataset_train)
+
+            return train_loader, val_loader, test_loader, weights, metrics
+
 
 
 def get_class_weights(dataset):

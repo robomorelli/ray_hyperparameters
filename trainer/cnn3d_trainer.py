@@ -28,9 +28,12 @@ class trainCNN3D(tune.Trainable):
         self.act = config['act']
         self.filter_size = config['filter_size']
         self.patch_size = config['patch_size']
+        self.augmentation = config['augmentation']
+        self.oversampling = config['oversampling']
 
         self.best_val_loss = 10**16
 
+        # we need to write in cfg to load the model with the correct hyperparameters after the training
         self.cfg['model']['num_filter'] = self.num_filter
         self.cfg['model']['filter_size'] = self.filter_size
         self.cfg['model']['act'] = self.act
@@ -40,7 +43,8 @@ class trainCNN3D(tune.Trainable):
 
         if self.cfg.opt.k_fold_cv:
             self.trainloader_list, self.valloader_list, self.weights_list, self.metrics = get_dataset(self.cfg, batch_size=self.batch_size,
-                                                                            patch_size=self.patch_size, from_dictionary=self.cfg.dataset.from_dictionary)
+                                                                            patch_size=self.patch_size, from_dictionary=self.cfg.dataset.from_dictionary,
+                                                                            augmentation=self.augmentation, oversampling=self.oversampling)
             self.model_list = [get_model(self.cfg, num_filter=self.num_filter, act=self.act, filter_size=self.filter_size).to(
                 self.device) for i in range(self.cfg.opt.k_fold_cv)]
             self.optimizer_list = [torch.optim.Adam(model.parameters(), lr=self.lr) for model in self.model_list]
