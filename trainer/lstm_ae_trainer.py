@@ -47,7 +47,7 @@ class trainLSTMAe(tune.Trainable):
         result = {"val_loss": val_loss}
         return result
 
-    def train_lstm_ae(self, checkpoint_dir=None):
+    def trainLSTMAE(self, checkpoint_dir=None):
         ####Train Loop####
         """
         Set the models to the training mode first and train
@@ -82,80 +82,50 @@ class trainLSTMAe(tune.Trainable):
             temp_val_loss = 0
             with torch.no_grad():
                 for i, batch in tqdm(enumerate(self.valloader), total=len(self.valloader), desc="Evaluating"):
-                    with torch.no_grad():
-                        x_o, enc, y_o = self.model(batch[0].to(self.device))
-                        loss = self.criterion(x_o.to(self.device), y_o.to(self.device)).item()
-                        temp_val_loss += loss
-                        val_steps += 1
-
-                temp_val_loss = temp_val_loss / val_steps
-                print('eval loss {}'.format(temp_val_loss))
-                if self.val_loss_cpu < self.best_val_loss:
-                    self.best_val_loss = self.val_loss_cpu
-                    return {"train_loss": self.train_loss_cpu,
-                            "val_loss": self.val_loss_cpu, "should_checkpoint": True}
-
-
-        train_loss = []
-        patience = 1
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8, patience=patience
-                                                               , threshold=0.0001, threshold_mode='rel',
-                                                               cooldown=0, min_lr=9e-8, verbose=True)
-
-        for epoch in range(self.epochs):
-            self.model.train()
-            running_loss = 0.0
-            for i, (x, y) in enumerate(self.trainloader):
-                self.optimizer.zero_grad()
-
-                x = x.to(self.device)
-                y = y.to(self.device)
-                out = self.model(x)
-
-                loss = torch.nn.BCELoss()(out, y)
-                loss.backward()
-                self.optimizer.step()
-
-                running_loss += loss.item()
-                train_loss.append(loss.item())
-
-                if i % 10 == 0:
-                    print("Loss: {}".format(loss.item()))
-
-            ###############################################
-            # eval mode for evaluation on validation dataset
-            ###############################################
-
-            # Validation loss
-            # val_loss = 0.0
-            temp_val_loss = 0.0
-            val_steps = 0
-            self.model.eval()
-            for i, (x, y) in enumerate(self.valloader, 0):
-                with torch.no_grad():
-                    x = x.to(self.device)
-
-                    self.optimizer.zero_grad()
-
-                    x = x.to(self.device)
-                    y = y.to(self.device)
-                    out = self.model(x)
-
-                    temp_val_loss += torch.nn.BCELoss()(out, y)
-
+                    x_o, enc, y_o = self.model(batch[0].to(self.device))
+                    loss = self.criterion(x_o.to(self.device), y_o.to(self.device)).item()
+                    temp_val_loss += loss
                     val_steps += 1
-            val_loss = temp_val_loss / len(self.valloader)
-            val_loss_cpu = val_loss.cpu().item()
-            print('validation_loss {}'.format(val_loss_cpu))
-            scheduler.step(val_loss)
 
-            return val_loss_cpu
+            temp_val_loss = temp_val_loss / val_steps
+            print('eval loss {}'.format(temp_val_loss))
+            if self.val_loss_cpu < self.best_val_loss:
+                self.best_val_loss = self.val_loss_cpu
+                return {"train_loss": self.train_loss_cpu,
+                        "val_loss": self.val_loss_cpu, "should_checkpoint": True}
+            else:
+                return {"train_loss": self.train_loss_cpu,
+                        "val_loss": self.val_loss_cpu}
+
+    def testLSTMAE(self, checkpoint_dir=None):
+        test_loss = 0.0
+        test_steps = 0
+        self.model.eval()
+
+        with torch.no_grad():
+            for i, batch in tqdm(enumerate(self.valloader), total=len(self.valloader), desc="Evaluating"):
+                x_o, enc, y_o = self.model(batch[0].to(self.device))
+                loss = self.criterion(x_o.to(self.device), y_o.to(self.device)).item()
+                test_loss += loss
+                test_steps += 1
+
+        test_loss = test_loss / test_steps
+        self.test_loss_cpu = test_loss.cpu().item()
+        print('test_loss {}'.format(self.test_loss_cpu))
+        return {"test_loss": self.test_loss_cpu}
+
+
 
     def save_checkpoint(self, checkpoint_dir):
         print("this is the checkpoint dir {}".format(checkpoint_dir))
-        checkpoint_path = os.path.join(checkpoint_dir, self.model_name)
-        torch.save(self.model.state_dict(), checkpoint_path)
-        return checkpoint_path
+        torch.save({
+                'epoch': self.current_epoch,
+                'model_state_dict': self.model.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),
+                'loss': self.val_loss_cpu,
+                'cfg': self.cfg
+            }, f"{checkpoint_dir}/model.pt")
+        return os.path.join(checkpoint_dir, "model.pt")
 
     def load_checkpoint(self, checkpoint_path):
         self.model.load_state_dict(torch.load(checkpoint_path))
