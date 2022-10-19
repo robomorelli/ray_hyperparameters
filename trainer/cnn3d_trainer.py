@@ -186,6 +186,7 @@ class trainCNN3D(tune.Trainable):
 
             val_loss = temp_val_loss / val_steps
             self.val_loss_cpu = val_loss.cpu().item()
+            self.scheduler.step(val_loss)
 
             try:
                 f1_score = self.f1_score(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
@@ -193,17 +194,21 @@ class trainCNN3D(tune.Trainable):
                 print("val Loss: {} and f1_score {} and acc {}".format(self.val_loss_cpu, f1_score, acc))
                 if self.val_loss_cpu < self.best_val_loss:
                     self.best_val_loss = self.val_loss_cpu
-                    return {"train_loss": self.train_loss_cpu,
-                            "val_loss": self.val_loss_cpu, "should_checkpoint": True}
+                    return {"train_loss": self.train_loss_cpu, "val_loss": self.val_loss_cpu,
+                            "val_acc":acc ,
+                            "val_f1": f1_score, "should_checkpoint": True}
+                else:
+                    return {"train_loss": self.train_loss_cpu, "val_loss": self.val_loss_cpu,
+                            "val_acc":acc ,
+                            "val_f1": f1_score}
             except:
                 print('validation_loss {}'.format(self.val_loss_cpu))
                 if self.val_loss_cpu < self.best_val_loss:
                     self.best_val_loss = self.val_loss_cpu
-                    return {"train_loss": self.train_loss_cpu,
-                            "val_loss": self.val_loss_cpu, "should_checkpoint": True}
+                    return {"train_loss": self.train_loss_cpu, "val_loss": self.val_loss_cpu,
+                             "should_checkpoint": True}
                 else:
                     return {"train_loss": self.train_loss_cpu, "val_loss": self.val_loss_cpu}
-            self.scheduler.step(val_loss)
 
 
     def testCNN3D(self, checkpoint_dir=None):
@@ -243,8 +248,12 @@ class trainCNN3D(tune.Trainable):
                                      central_pixel_tensor.to(self.device)).cpu().item()
             acc = self.acc(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
             print("test Loss: {} and test f1_score {}".format(self.test_loss_cpu, f1_score, acc))
+            return {"test_loss": self.train_loss_cpu,
+                    "test_acc": acc,
+                    "test_f1": f1_score}
         except:
             print('test_loss {}'.format(self.test_loss_cpu))
+            return {"test_loss": self.train_loss_cpu}
 
 
     def save_checkpoint(self, checkpoint_dir):
