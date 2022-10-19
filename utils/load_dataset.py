@@ -1,7 +1,9 @@
 from preprocessing.nls_kdd_preprocessing import prep_nls_kdd_test, prep_nls_kdd_train_val
 from preprocessing.albania_preprocessing import prep_albania
-from dataset.nls_kdd_dataloader import numpyArray
+from preprocessing.sentinel_preprocessing import prep_sentinel
+from dataset.nls_kdd_dataloader import Numpy_array
 from dataset.albania_dataloader import Supervised, Supervised_dictionary
+from dataset.sentinel import Dataset_seq
 
 import torch
 from torchvision.transforms import transforms as T
@@ -9,12 +11,11 @@ from torch.utils.data import DataLoader,ConcatDataset
 from sklearn.model_selection import KFold
 import pickle
 import numpy as np
+import pandas as pd
 from omegaconf import OmegaConf
 import multiprocessing as mp
 
-
 from config import *
-
 
 def get_dataset(cfg, **kwargs):
     """
@@ -23,13 +24,38 @@ def get_dataset(cfg, **kwargs):
     :param transform: transform to be applied to the dataset
     :return: dataset train, dataset test
     """
+    if cfg.dataset.name == "sentinel":
+
+        sample_rate = cfg.dataset.sample_rate
+        feats = cfg.dataset.feats
+        clean = cfg.dataset.clean
+
+        if clean:
+            dataset_name = '{}_2016-2018_clean_{}.pkl'.format(feats, sample_rate)
+        else:
+            dataset_name = '{}_2016-2018_{}.pkl'.format(feats, sample_rate)
+
+        df = pd.read_pickle((os.path.join(sentinel_path, dataset_name), "rb"))
+        df_train, df_test, ohe = prep_sentinel(df, cfg.dataset.columns, columns_subset=cfg.dataset.columns_subset,
+                                               dataset_subset=cfg.dataset.dataset_subset, train_val_split=0.2,
+                                               scale=True)
+        # Dataset for dataloader definition
+        train_dataset = Dataset_seq(df_train, target=cfg.dataset.target, sequence_length=cfg.dataset.sequence_length,
+                                    out_window=cfg.dataset.out_window, prediction=False)
+        trainloader = DataLoader(dataset=train_dataset, batch_size=kwargs['batch_size'], shuffle=True)
+        test_dataset = Dataset_seq(df_test, target=cfg.dataset.target, sequence_length=cfg.dataset.sequence_length,
+                                    out_window=cfg.dataset.out_window, prediction=False)
+        valloader = DataLoader(dataset=test_dataset, batch_size=kwargs['batch_size'], shuffle=True)
+
+        return trainloader, valloader
+
     if cfg.dataset.name == "nls_kdd":
         # Preprocessing step (there is also testx to use for example in test accuray in trainer step
         trainx, valx, ohe = prep_nls_kdd_train_val(0.2, nls_kdd_cols, nls_kdd_cat_cols,
                                           preprocessing='log', exclude_cat=True)
         # Dataset for dataloader definition
-        dataset_train = numpyArray(trainx)
-        dataset_val = numpyArray(valx)
+        dataset_train = Numpy_array(trainx)
+        dataset_val = Numpy_array(valx)
         # Dataloader definition
         trainloader = DataLoader(dataset_train, batch_size=kwargs['batch_size'], shuffle=True)
         valloader = DataLoader(dataset_val, batch_size=kwargs['batch_size'], shuffle=True)

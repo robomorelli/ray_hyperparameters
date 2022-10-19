@@ -1,5 +1,6 @@
 from models.vae import VAE
 from models.autoencoder import AE
+from models.lstm_ae import LSTM_AE
 from models.cnn3d import CNN3D
 
 def get_model(cfg, **kwargs):
@@ -17,6 +18,10 @@ def get_model(cfg, **kwargs):
     if cfg.model.name == "ae":
         model = AE(cfg, original_dim=kwargs['original_dim'], intermediate_dim=kwargs['intermediate_dim'],
                     code_dim=kwargs['code_dim'])
+        return model
+
+    if cfg.model.name == "lstm_ae":
+        model = LSTM_AE(cfg, **kwargs)
         return model
 
     if cfg.model.name == "cnn3d":

@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 
-class numpyArray(Dataset):
+class Numpy_array(Dataset):
     def __init__(self, matrix, autoencoder=True):
         self.autoencoder = autoencoder
         self.x = matrix
