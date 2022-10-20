@@ -111,8 +111,8 @@ class Supervised_dictionary(torch.utils.data.Dataset):
             batch, labels = self.dict['patches'][index], self.dict['labels'][index]
             central_pixel = (batch.shape[1] // 2)
             if self.p_size > 1:
-                batch = batch[:, central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
-                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
+                batch = batch[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
+                , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1, :]
                 labels = labels[central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1
                 , central_pixel - self.p_size // 2: central_pixel + self.p_size // 2 + 1]
             else:
@@ -122,6 +122,7 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         else:
             batch, labels = self.dict['patches'][index], self.dict['labels'][index]
 
+        batch = np.transpose(batch, (2,0,1))
         if self.augmentation:
             # channel should be in the firt position (x, h, w)
             r = np.random.randint(4)
