@@ -80,11 +80,7 @@ def get_dataset(cfg, **kwargs):
                                                 transform=transform, samples_coords_test=c_test,
                                                 labels_test=l_test, patch_path_test=path_test)
 
-
         else:
-            if cfg.opt.k_fold_cv:
-                cfg.dataset.train_split = 1 - 1/cfg.opt.k_fold_cv
-                print("train split {}".format(cfg.dataset.train_split))
             train_dict, val_dict = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split,
                                                 from_dictionary=cfg.dataset.from_dictionary)
             #test_dict = prep_albania(test_selected_pixels, test=True)
@@ -120,35 +116,7 @@ def get_dataset(cfg, **kwargs):
         #else:
         #    num_workers = cfg.opt.num_workers
 
-        if cfg.opt.k_fold_cv:
-            trainloader_list = []
-            testloader_list = []
-            weights_list = []
-
-            kfold = KFold(n_splits=cfg.opt.k_fold_cv, shuffle=True)
-            dataset = ConcatDataset([dataset_train, dataset_val])
-
-            for fold, (train_idx, test_idx) in enumerate(kfold.split(dataset)):
-                print('------------fold no---------{}----------------------'.format(fold))
-                train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
-                test_subsampler = torch.utils.data.SubsetRandomSampler(test_idx)
-
-                train_dataset = DataLoader(
-                    dataset, num_workers=cfg.opt.num_workers,
-                                batch_size=kwargs['batch_size'],
-                                sampler=train_subsampler) # no shuffle train
-                trainloader_list.append(train_dataset)
-                testloader_list.append(torch.utils.data.DataLoader(
-                    dataset, num_workers=cfg.opt.num_workers,
-                                batch_size=kwargs['batch_size'],
-                                sampler=test_subsampler)) # no shuffle train
-
-                weights_list.append(get_class_weights(dataset_train))
-                print('k fold validation')
-
-            return trainloader_list, testloader_list, weights_list,  metrics
-
-        elif cfg.opt.unbalanced_resampling:
+        if cfg.opt.unbalanced_resampling:
 
             #kfold = KFold(n_splits=cfg.opt.k_fold_cv, shuffle=True)
             #dataset = ConcatDataset([dataset_train, dataset_val])
@@ -160,7 +128,6 @@ def get_dataset(cfg, **kwargs):
 
             sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight))
 
-
             train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
                                       num_workers=1, sampler=sampler)
 
@@ -169,7 +136,9 @@ def get_dataset(cfg, **kwargs):
             test_loader = DataLoader(dataset_val, batch_size=kwargs['batch_size'],
                                       num_workers=1)
 
-            return train_loader, val_loader, class_sample_count, metrics
+            weights = get_class_weights(dataset_train)
+
+            return train_loader, val_loader, test_loader, weights, metrics
 
         else:
 
