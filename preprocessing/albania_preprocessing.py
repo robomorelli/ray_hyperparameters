@@ -1,6 +1,7 @@
 
 import numpy as np
 import random
+from sklearn.model_selection import train_test_split
 
 def prep_albania(selected_pixels, dataset_train_split=0.70, test=False, from_dictionary=False):
 
@@ -33,49 +34,26 @@ def prep_albania(selected_pixels, dataset_train_split=0.70, test=False, from_dic
 
     else:
         if not test:
-            tot_len = len(selected_pixels['patches'])
-            train_len = int(tot_len * dataset_train_split)
-            #val_len = int(tot_len * 0.33)
-
-            items = list(zip(selected_pixels['patches'], selected_pixels['labels']))
-            random.shuffle(items)
-
-            patches, labels = zip(*items)
-            labels = list(labels)
-            patches_train = patches[:train_len]
-            patches_val = patches[train_len:tot_len]
-            labels_train = labels[:train_len]
-            labels_val = labels[train_len:tot_len]
-
+            X_train, X_test, y_train, y_test = train_test_split(selected_pixels['patches'],
+                                                                selected_pixels['labels'],
+                                                                test_size=1-dataset_train_split)
             train_dict = {}
             val_dict = {}
-
-            train_dict['patches'] = patches_train
-            train_dict['labels'] = labels_train
-            val_dict['patches'] = patches_val
-            val_dict['labels'] = labels_val
-
+            train_dict['patches'] = X_train
+            train_dict['labels'] = y_train
+            val_dict['patches'] = X_test
+            val_dict['labels'] = y_test
             return train_dict, val_dict
 
         else:
-
-            tot_len = len(selected_pixels['patches'])
-            items = list(zip(selected_pixels['patches'], selected_pixels['labels']))
-            random.shuffle(items)
-
-            patches, labels = zip(*items)
-            labels = list(labels)
-            patches_train = patches[:dataset_train_split]
-            patches_val = patches[dataset_train_split:tot_len]
-            labels_train = labels[:dataset_train_split]
-            labels_val = labels[dataset_train_split:tot_len]
-
+            X_train, X_test, y_train, y_test = train_test_split(selected_pixels['patches'],
+                                                                selected_pixels['labels'],
+                                                                test_size=1 - dataset_train_split)
             train_dict = {}
             val_dict = {}
-
-            train_dict['patches'] = patches_train
-            train_dict['labels'] = labels_train
-            val_dict['patches'] = patches_val
-            val_dict['labels'] = labels_val
+            train_dict['patches'] = X_train
+            train_dict['labels'] = y_train
+            val_dict['patches'] = X_test
+            val_dict['labels'] = y_test
 
             return val_dict

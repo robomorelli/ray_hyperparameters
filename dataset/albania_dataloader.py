@@ -82,7 +82,6 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         self.n_channels = n_channels
         self.class_number = class_number
         self.transform = transform
-        self.ae = ae #not used so far
 
         # From Kwargs
         if not test:
