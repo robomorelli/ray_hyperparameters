@@ -160,8 +160,8 @@ class trainCNN3D(tune.Trainable):
             y_hat_tensor = torch.zeros_like(y_hat)
             central_pixel_tensor = torch.zeros_like(central_pixel)
             self.model.eval()
-            for i, (x, y) in enumerate(self.valloader, 0):
-                with torch.no_grad():
+            with torch.no_grad():
+                for i, (x, y) in enumerate(self.valloader, 0):
                     x = x.float().to(self.device)
                     y = y.float().to(self.device)
 
@@ -186,7 +186,6 @@ class trainCNN3D(tune.Trainable):
 
             val_loss = temp_val_loss / val_steps
             self.val_loss_cpu = val_loss.cpu().item()
-            self.scheduler.step(val_loss)
 
             try:
                 f1_score = self.f1_score(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
@@ -209,14 +208,15 @@ class trainCNN3D(tune.Trainable):
                              "should_checkpoint": True}
                 else:
                     return {"train_loss": self.train_loss_cpu, "val_loss": self.val_loss_cpu}
+            self.scheduler.step(val_loss)
 
 
     def testCNN3D(self, checkpoint_dir=None):
         temp_test_loss = 0.0
         test_steps = 0
         self.model.eval()
-        for i, (x, y) in enumerate(self.testloader):
-            with torch.no_grad():
+        with torch.no_grad():
+            for i, (x, y) in enumerate(self.testloader):
                 x = x.float().to(self.device)
                 y = y.float().to(self.device)
 
