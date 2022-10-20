@@ -76,12 +76,13 @@ class Supervised(torch.utils.data.Dataset):
 
 class Supervised_dictionary(torch.utils.data.Dataset):
     def __init__(self, n_channels=24,
-                  class_number=0, train=True, test=False, transform=None, ae=False,
+                  class_number=0, train=True, test=False, transform=None, augmentation=False,
                  **kwargs):
 
         self.n_channels = n_channels
         self.class_number = class_number
         self.transform = transform
+        self.augmentation = augmentation
 
         # From Kwargs
         if not test:
@@ -100,7 +101,6 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         :param index:
         :return:
         """
-
         if self.p_size:
             batch, labels = self.dict['patches'][index], self.dict['labels'][index]
             central_pixel = (batch.shape[1] // 2)
@@ -116,7 +116,14 @@ class Supervised_dictionary(torch.utils.data.Dataset):
         else:
             batch, labels = self.dict['patches'][index], self.dict['labels'][index]
 
-        batch = np.transpose(batch, (2,0,1))
+        batch = np.transpose(batch, (2, 0, 1))
+
+        if self.augmentation:
+            # channel should be in the firt position (x, h, w)
+            r = np.random.randint(4)
+            #degree = self.angle_list[r]
+            #batch = rotate(batch, degree)
+            batch = np.rot90(batch, r, [1,2]).copy()
 
         return batch, labels
 

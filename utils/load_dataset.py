@@ -11,7 +11,6 @@ import pickle
 import numpy as np
 from omegaconf import OmegaConf
 import multiprocessing as mp
-
 from config import *
 
 
@@ -37,13 +36,13 @@ def get_dataset(cfg, **kwargs):
 
     if cfg.dataset.name == "albania_supervised":
         # Preprocessing step (load mixed coords of negative and positive)
-        open_file = open(os.path.join(root + cfg.dataset.coords_path), "rb")
-        #open_file = open(os.path.join(cfg.dataset.coords_path), "rb")
+        #open_file = open(os.path.join(root + cfg.dataset.coords_path), "rb")
+        open_file = open(os.path.join(cfg.dataset.coords_path), "rb")
         selected_pixels = pickle.load(open_file)
         open_file.close()
 
-        open_file = open(os.path.join(root + cfg.dataset.test_coords_path), "rb")
-        #open_file = open(os.path.join(cfg.dataset.test_coords_path), "rb")
+        #open_file = open(os.path.join(root + cfg.dataset.test_coords_path), "rb")
+        open_file = open(os.path.join(cfg.dataset.test_coords_path), "rb")
         test_selected_pixels = pickle.load(open_file)
         open_file.close()
 
@@ -82,14 +81,18 @@ def get_dataset(cfg, **kwargs):
             if cfg.opt.k_fold_cv:
                 cfg.dataset.train_split = 1 - 1/cfg.opt.k_fold_cv
                 print("train split {}".format(cfg.dataset.train_split))
+
             train_dict, val_dict = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split,
                                                 from_dictionary=cfg.dataset.from_dictionary)
             #test_dict = prep_albania(test_selected_pixels, test=True)
 
-            dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
-                                                   transform=transform,
-                                                # From Kwargs:
-                                                train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size'])
+            if kwargs['augmentation']:
+                dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+                                                       transform=transform,
+                                                    # From Kwargs:
+                                                    train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size']
+                                                    , augmentation=kwargs['augmentation'])
+
             dataset_val = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
                                                 transform=transform,
                                                 # From Kwargs:
@@ -101,18 +104,35 @@ def get_dataset(cfg, **kwargs):
                                                 # From Kwargs:
                                                 patch_size=kwargs['patch_size'],
                                                  test_dict=test_selected_pixels)
+        #############################################################################
+        ######################Add oversampling and or k-fold######################à
+        if kwargs['oversampling'] and not cfg.opt.k_fold_cv:
 
-        #if cfg.opt.num_workers is None:
-        #    num_workers = mp.cpu_count()
-        #else:
-        #    num_workers = cfg.opt.num_workers
+            y = np.array([int(x[1][0][0]) for x in list(dataset_train)])
+            class_sample_count = np.array([len(np.where(y == t)[0]) for t in np.unique(y)])
+            weight = 1. / class_sample_count
+            samples_weight = np.array([weight[t] for t in y])
 
-        if cfg.opt.k_fold_cv:
+            sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight))
+
+            train_loader = DataLoader(dataset_train, batch_size=kwargs['batch_size'],
+                                      num_workers=1, sampler=sampler)
+
+            val_loader = DataLoader(dataset_val, batch_size=kwargs['batch_size'],
+                                    num_workers=1)
+            test_loader = DataLoader(dataset_val, batch_size=kwargs['batch_size'],
+                                     num_workers=1)
+            weights = get_class_weights(dataset_train)
+
+            return train_loader, val_loader, test_loader, weights, metrics
+
+        elif cfg.opt.k_fold_cv and not kwargs['oversampling']:
             trainloader_list = []
             testloader_list = []
             weights_list = []
 
-            kfold = KFold(n_splits=cfg.opt.k_fold_cv, shuffle=True)
+            kfold = KFold(n_splits=cfg.opt.k_fold_cv, random_state= 123, shuffle=False)
+            #shuffle false to evaluate with the same split different architectures
             dataset = ConcatDataset([dataset_train, dataset_val])
 
             for fold, (train_idx, test_idx) in enumerate(kfold.split(dataset)):
@@ -122,6 +142,43 @@ def get_dataset(cfg, **kwargs):
 
                 train_dataset = DataLoader(
                     dataset, num_workers=cfg.opt.num_workers,
+                                batch_size=kwargs['batch_size'],
+                                sampler=train_subsampler)
+                trainloader_list.append(train_dataset)
+
+                testloader_list.append(torch.utils.data.DataLoader(
+                    dataset, num_workers=cfg.opt.num_workers,
+                                batch_size=kwargs['batch_size'],
+                                sampler=test_subsampler))
+
+                weights_list.append(get_class_weights(dataset_train))
+                print('k fold validation')
+
+            return trainloader_list, testloader_list, weights_list,  metrics
+
+        elif cfg.opt.k_fold_cv and kwargs['oversampling']:
+            trainloader_list = []
+            testloader_list = []
+            weights_list = []
+
+            kfold = KFold(n_splits=cfg.opt.k_fold_cv, random_state= 123, shuffle=True)
+            #shuffle false to evaluate with the same split different architectures
+            dataset = ConcatDataset([dataset_train, dataset_val])
+
+            for fold, (train_idx, test_idx) in enumerate(kfold.split(dataset)):
+                print('------------fold no---------{} with oversampling----------------------'.format(fold))
+                dataset_train_list = [dataset[i] for i in train_idx]
+                y = np.array([int(x[1][0][0]) for x in dataset_train_list]) # take only the train_idx from this dataset
+                class_sample_count = np.array([len(np.where(y == t)[0]) for t in np.unique(y)])
+                weight = 1. / class_sample_count
+                samples_weight = np.array([weight[t] for t in y])
+                train_subsampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight))
+
+                #train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
+                test_subsampler = torch.utils.data.SubsetRandomSampler(test_idx)
+
+                train_dataset = DataLoader(
+                    dataset_train_list, num_workers=cfg.opt.num_workers,
                                 batch_size=kwargs['batch_size'],
                                 sampler=train_subsampler)
                 trainloader_list.append(train_dataset)

@@ -30,7 +30,6 @@ class trainCNN3D(tune.Trainable):
         self.patch_size = config['patch_size']
         self.augmentation = config['augmentation']
         self.oversampling = config['oversampling']
-        self.optimizer_name = config['optimizer']
 
         '''ADD oversmapling, agu 
         from config and optimizer also'''
@@ -41,13 +40,12 @@ class trainCNN3D(tune.Trainable):
         self.cfg['model']['filter_size'] = self.filter_size
         self.cfg['model']['act'] = self.act
         self.cfg['dataset']['patch_size'] = self.patch_size
-        self.cfg['opt']['optimizer'] = self.optimizer_name
 
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
 
         if self.cfg.opt.k_fold_cv:
             self.trainloader_list, self.valloader_list, self.weights_list, self.metrics = get_dataset(self.cfg, batch_size=self.batch_size,
-                                                                            patch_size=self.patch_size, from_dictionary=self.cfg.dataset.from_dictionary)
+                                                                    patch_size=self.patch_size, from_dictionary=self.cfg.dataset.from_dictionary)
             self.model_list = [get_model(self.cfg, num_filter=self.num_filter, act=self.act, filter_size=self.filter_size).to(
                 self.device) for i in range(self.cfg.opt.k_fold_cv)]
             self.optimizer_list = [torch.optim.Adam(model.parameters(), lr=self.lr) for model in self.model_list]
@@ -55,10 +53,21 @@ class trainCNN3D(tune.Trainable):
                                                                         patience=self.patience
                                                                         , threshold=0.0001, threshold_mode='rel',
                                                                         cooldown=0, min_lr=9e-8, verbose=True) for i in range(len(self.model_list))]
-            if self.class_number > 1:
-                self.criterion_list = [nn.CrossEntropyLoss(weight=self.weights_list[i]).to(self.device) for i in range(len(self.model_list))]
+
+            if self.cfg.model.class_number > 1:
+                if self.oversampling:
+                    self.criterion_list = [nn.CrossEntropyLoss().to(self.device) for i in
+                                           range(len(self.model_list))]
+                else:
+                    self.criterion_list = [nn.CrossEntropyLoss(weight=self.weights_list[i]).to(self.device) for i in
+                                           range(len(self.model_list))]
             else:
-                self.criterion_list =  [nn.BCEWithLogitsLoss(pos_weight=self.weights_list[i]).to(self.device) for i in range(len(self.model_list))]
+                if self.oversampling:
+                    self.criterion_list = [nn.BCEWithLogitsLoss().to(self.device) for i
+                                           in range(len(self.model_list))]
+                else:
+                    self.criterion_list = [nn.BCEWithLogitsLoss(pos_weight=self.weights_list[i]).to(self.device) for i
+                                           in range(len(self.model_list))]
 
             if "accuracy" in self.metrics:
                 self.acc = self.model_list[0].acc.to(self.device)
