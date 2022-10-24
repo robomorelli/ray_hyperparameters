@@ -36,13 +36,13 @@ def get_dataset(cfg, **kwargs):
 
     if cfg.dataset.name == "albania_supervised":
         # Preprocessing step (load mixed coords of negative and positive)
-        #open_file = open(os.path.join(root + cfg.dataset.coords_path), "rb")
-        open_file = open(os.path.join(cfg.dataset.coords_path), "rb")
+        open_file = open(os.path.join(root + cfg.dataset.coords_path), "rb")
+        #open_file = open(os.path.join(cfg.dataset.coords_path), "rb")
         selected_pixels = pickle.load(open_file)
         open_file.close()
 
-        #open_file = open(os.path.join(root + cfg.dataset.test_coords_path), "rb")
-        open_file = open(os.path.join(cfg.dataset.test_coords_path), "rb")
+        open_file = open(os.path.join(root + cfg.dataset.test_coords_path), "rb")
+        #open_file = open(os.path.join(cfg.dataset.test_coords_path), "rb")
         test_selected_pixels = pickle.load(open_file)
         open_file.close()
 
@@ -84,7 +84,6 @@ def get_dataset(cfg, **kwargs):
 
             train_dict, val_dict = prep_albania(selected_pixels, dataset_train_split=cfg.dataset.train_split,
                                                 from_dictionary=cfg.dataset.from_dictionary)
-            #test_dict = prep_albania(test_selected_pixels, test=True)
 
             if kwargs['augmentation']:
                 dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
@@ -92,7 +91,12 @@ def get_dataset(cfg, **kwargs):
                                                     # From Kwargs:
                                                     train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size']
                                                     , augmentation=kwargs['augmentation'])
-
+            else:
+                dataset_train = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=True,
+                                                       transform=transform,
+                                                    # From Kwargs:
+                                                    train_dict=train_dict, val_dict=val_dict, patch_size=kwargs['patch_size']
+                                                    )
             dataset_val = Supervised_dictionary(n_channels=cfg.dataset.in_channel, class_number=cfg.model.class_number, train=False,
                                                 transform=transform,
                                                 # From Kwargs:

@@ -40,11 +40,11 @@ def main(args):
                         scheduler=sched,
                         stop={"training_iteration": 10 ** 16},
                         resources_per_trial=resources_per_trial,
-                        num_samples=400,
+                        num_samples=300,
                         checkpoint_at_end=True, #otherwise it fails on multinode?
                         #checkpoint_freq=1,
                         local_dir="~/ray_results",
-                        name="{}/{}".format(cfg.model.name, date.replace('/', '-')),
+                        name="{}/{}_over_aug".format(cfg.model.name, date.replace('/', '-')),
                         config=config)
 
     print("Best config is:", analysis.get_best_config(metric="val_loss", mode="min"))

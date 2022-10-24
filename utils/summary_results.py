@@ -43,7 +43,6 @@ if __name__ == "__main__":
     base_path = os.path.join(home,'ray_results')
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment_path", default=base_path, help="the model you want to hpo")
-    parser.add_argument("--experiment_name", default='cnn3d/10-11-22:18:10:38', help="the model you want to hpo")
+    parser.add_argument("--experiment_name", default='cnn3d/10-20-22:18:45:00_over_aug', help="the model you want to hpo")
     args = parser.parse_args()
-
     main(args)

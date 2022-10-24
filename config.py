@@ -7,7 +7,7 @@ model_results_path = root + '/model_results/'
 if 'fdir' in root:
     print('paths should be fine')
 else:
-    root = os.path.join(root ,'artificial_intelligence/repos/fdir')
+    root = os.path.join(root,'artificial_intelligence/repos/fdir')
 
 config_path = root + '/train_configurations/'
 

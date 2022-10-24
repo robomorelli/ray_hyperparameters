@@ -15,7 +15,7 @@ def main():
     trainloader_list, valloader_list, weights_list, metrics = get_dataset(cfg,
                                     batch_size=cfg.opt.batch_size,patch_size=cfg.dataset.patch_size,
                                     from_dictionary=cfg.dataset.from_dictionary, augmentation=cfg.opt.augmentation,
-                                    oversampling=cfg.opt.oversampling)
+                                    oversampling=cfg.opt.oversampling, test=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
