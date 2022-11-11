@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("--address", help="adress of master")
     parser.add_argument("--password", help="password to connect to master")
     #parser.add_argument("--config_path", default='./train_configurations/', help="echo the string you use here")
-    parser.add_argument("--config_file", default='cnn3d', help="the model you want to hpo")
+    parser.add_argument("--config_file", default='lstm_ae', help="the model you want to hpo")
     args = parser.parse_args()
 
     os.environ['TUNE_MAX_PENDING_TRIALS_PG'] = "12"

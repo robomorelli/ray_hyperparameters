@@ -12,6 +12,7 @@ from sklearn.model_selection import KFold
 import pickle
 import numpy as np
 import pandas as pd
+import pickle5
 from omegaconf import OmegaConf
 import multiprocessing as mp
 
@@ -31,14 +32,18 @@ def get_dataset(cfg, **kwargs):
         clean = cfg.dataset.clean
 
         if clean:
-            dataset_name = '{}_2016-2018_clean_{}.pkl'.format(feats, sample_rate)
+            dataset_name = 'dataset_{}/{}_2016-2018_clean_{}.pkl'.format(sample_rate, feats, sample_rate)
         else:
-            dataset_name = '{}_2016-2018_{}.pkl'.format(feats, sample_rate)
+            dataset_name = 'dataset_{}/{}_2016-2018_{}.pkl'.format(sample_rate, feats, sample_rate)
 
-        df = pd.read_pickle((os.path.join(sentinel_path, dataset_name), "rb"))
-        df_train, df_test, ohe = prep_sentinel(df, cfg.dataset.columns, columns_subset=cfg.dataset.columns_subset,
+        #of = open(os.path.join(sentinel_path, dataset_name), "rb")
+        #df = pickle5.load(of)
+        df = pd.read_pickle(os.path.join(sentinel_path, dataset_name))
+
+        df_train, df_test = prep_sentinel(df, cfg.dataset.columns, columns_subset=cfg.dataset.columns_subset,
                                                dataset_subset=cfg.dataset.dataset_subset, train_val_split=0.2,
                                                scale=True)
+        n_features = len(df_train.columns)
         # Dataset for dataloader definition
         train_dataset = Dataset_seq(df_train, target=cfg.dataset.target, sequence_length=cfg.dataset.sequence_length,
                                     out_window=cfg.dataset.out_window, prediction=False)
@@ -47,7 +52,7 @@ def get_dataset(cfg, **kwargs):
                                     out_window=cfg.dataset.out_window, prediction=False)
         valloader = DataLoader(dataset=test_dataset, batch_size=kwargs['batch_size'], shuffle=True)
 
-        return trainloader, valloader
+        return trainloader, valloader, n_features
 
     if cfg.dataset.name == "nls_kdd":
         # Preprocessing step (there is also testx to use for example in test accuray in trainer step

@@ -30,7 +30,7 @@ class trainCNN3D(tune.Trainable):
         self.patch_size = config['patch_size']
         self.augmentation = config['augmentation']
         self.oversampling = config['oversampling']
-        self.optimizer_name = config['optimizer']
+        self.optimizer_name = config['optimizer_name']
 
         self.best_val_loss = 10**16
 

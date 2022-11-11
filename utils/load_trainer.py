@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from trainer.vae_trainer import trainVae
 from trainer.ae_trainer import trainAe
 from trainer.cnn3d_trainer import trainCNN3D
+from trainer.lstm_ae_trainer import trainLSTMAE
 from torch.utils.data import Dataset
 
 def get_trainer(cfg, **kwargs):
@@ -18,3 +19,5 @@ def get_trainer(cfg, **kwargs):
         return trainAe
     if cfg.model.name == "cnn3d":
         return trainCNN3D
+    if cfg.model.name == "lstm_ae":
+        return trainLSTMAE

@@ -85,10 +85,10 @@ class Decoder(nn.Module):
         return out
 
 class LSTM_AE(nn.Module):
-    def __init__(self, **kwargs):
+    def __init__(self, cfg, **kwargs):
         super().__init__()
 
-        self.seq_in_length = kwargs['seq_length']
+        self.seq_in_length = kwargs['seq_in_length']
         self.n_features = kwargs['n_features']
         self.embedding_dim = kwargs['embedding_dim']
         self.latent_dim = kwargs['latent_dim']
@@ -98,7 +98,7 @@ class LSTM_AE(nn.Module):
 
         self.encoder = Encoder(self.seq_in_length, self.n_features,
                                self.embedding_dim, self.latent_dim, self.n_layers)
-        self.decoder = Decoder(self.seq_out, self.embedding_dim,
+        self.decoder = Decoder(self.seq_out_length, self.embedding_dim,
                                self.output_size, self.latent_dim, self.n_layers)
 
     def forward(self, x):
