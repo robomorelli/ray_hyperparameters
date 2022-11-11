@@ -56,6 +56,7 @@ class trainLSTMAE(tune.Trainable):
         Set the models to the training mode first and train
         """
         for epoch in tqdm(range(self.epochs), unit='epoch'):
+            self.current_epoch = epoch
             temp_train_loss = 0
             train_steps = 0
             for i, batch in tqdm(enumerate(self.trainloader), total=len(self.trainloader), unit="batch"):
@@ -122,14 +123,13 @@ class trainLSTMAE(tune.Trainable):
         return {"test_loss": test_loss_cpu}
 
 
-
     def save_checkpoint(self, checkpoint_dir):
         print("this is the checkpoint dir {}".format(checkpoint_dir))
         torch.save({
                 'epoch': self.current_epoch,
                 'model_state_dict': self.model.state_dict(),
                 'optimizer_state_dict': self.optimizer.state_dict(),
-                'loss': self.val_loss_cpu,
+                'loss': self.best_val_loss,
                 'cfg': self.cfg
             }, f"{checkpoint_dir}/model.pt")
         return os.path.join(checkpoint_dir, "model.pt")

@@ -39,7 +39,7 @@ def main(args):
                         scheduler=sched,
                         stop={"training_iteration": 10 ** 16},
                         resources_per_trial=resources_per_trial,
-                        num_samples=300,
+                        num_samples=1,
                         checkpoint_at_end=True, #otherwise it fails on multinode?
                         #checkpoint_freq=1,
                         local_dir="~/ray_results",
