@@ -135,7 +135,7 @@ def get_dataset(cfg, **kwargs):
             testloader_list = []
             weights_list = []
 
-            kfold = KFold(n_splits=cfg.opt.k_fold_cv, random_state= 123, shuffle=False)
+            kfold = KFold(n_splits=cfg.opt.k_fold_cv, random_state= 123, shuffle=True)
             #shuffle false to evaluate with the same split different architectures
             dataset = ConcatDataset([dataset_train, dataset_val])
 

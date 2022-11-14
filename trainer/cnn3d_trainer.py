@@ -224,29 +224,29 @@ class trainCNN3D(tune.Trainable):
                         val_steps += 1
 
                 val_loss = temp_val_loss / val_steps
-                self.val_loss_cpu = val_loss.cpu().item()
-                self.fold_overall_val_loss.append(self.val_loss_cpu)
+                val_loss_cpu = val_loss.cpu().item()
+                self.fold_overall_val_loss.append(val_loss_cpu)
 
                 scheduler = self.scheduler_list[fold]
                 try:
                     f1_score = self.f1_score(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
                     acc = self.acc(y_hat_tensor.to(self.device), central_pixel_tensor.to(self.device)).cpu().item()
-                    print("val Loss: {} and f1_score {} for fold {}".format(self.val_loss_cpu , f1_score, fold))
+                    print("val Loss: {} and f1_score {} for fold {}".format(val_loss_cpu , f1_score, fold))
                     scheduler.step(val_loss)
                     self.fold_overall_val_acc.append(acc)
                     self.fold_overall_val_f1.append(f1_score)
                     metrics_flag=True
 
                 except:
-                    print('validation_loss {} in fold {}'.format(self.val_loss_cpu, fold))
+                    print('validation_loss {} in fold {}'.format(val_loss_cpu, fold))
                     metrics_flag = False
                     scheduler.step(val_loss)
-                    if self.val_loss_cpu < self.best_val_loss:
-                        self.best_val_loss = self.val_loss_cpu
+                    if val_loss_cpu < self.best_val_loss:
+                        self.best_val_loss = val_loss_cpu
                         return {"train_loss": self.train_loss_cpu,
-                                "val_loss":self.val_loss_cpu, "should_checkpoint": True}
+                                "val_loss": val_loss_cpu, "should_checkpoint": True}
                     else:
-                        return {"train_loss": self.train_loss_cpu, "val_loss":self.val_loss_cpu}
+                        return {"train_loss": self.train_loss_cpu, "val_loss":val_loss_cpu}
 
                 self.model_list[fold] = model
                 self.optimizer_list[fold] = optimizer
@@ -261,20 +261,20 @@ class trainCNN3D(tune.Trainable):
                 if overall_val_loss < self.best_val_loss:
                     self.best_val_loss = overall_val_loss
                     return {"train_loss": overall_train_loss, "val_loss": overall_val_loss, "val_acc":overall_acc ,
-                            "val_f1": self.overall_f1_score, "should_checkpoint": True}
+                            "val_f1": overall_f1_score, "should_checkpoint": True}
                 else:
                     overall_train_loss = np.mean(fold_overall_train_loss)
                     overall_val_loss = np.mean(self.fold_overall_val_loss)
                     return {"train_loss": overall_train_loss,
-                            "val_loss": overall_val_loss, "val_acc": overall_acc, "val_f1": self.overall_f1_score}
+                            "val_loss": overall_val_loss, "val_acc": overall_acc, "val_f1": overall_f1_score}
 
             else:
                 overall_train_loss = np.mean(fold_overall_train_loss)
                 overall_val_loss = np.mean(self.fold_overall_val_loss)
-                print('validation_loss {} in for overall'.format(self.val_loss_cpu, fold))
+                print('validation_loss {} in for overall'.format(val_loss_cpu, fold))
                 self.scheduler_list[fold].step(val_loss)
-                if self.val_loss_cpu < self.best_val_loss:
-                    self.best_val_loss = self.val_loss_cpu
+                if val_loss_cpu < self.best_val_loss:
+                    self.best_val_loss = val_loss_cpu
                     return {"train_loss": overall_train_loss, "val_loss": overall_val_loss,
                              "should_checkpoint": True}
                 else:
@@ -357,7 +357,7 @@ class trainCNN3D(tune.Trainable):
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': self.optimizer_list[fold].state_dict(),
                 'val_loss': self.fold_overall_val_loss[fold],
-                'val_f1_score': self.fold_overall_val_f1_score[fold],
+                'val_f1_score': self.fold_overall_val_f1[fold],
                 'val_acc': self.fold_overall_val_acc[fold],
                 'cfg': self.cfg
             }, f"{checkpoint_dir}/model_{fold}.pt")
