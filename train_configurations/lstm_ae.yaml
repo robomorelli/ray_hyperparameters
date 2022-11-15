@@ -1,0 +1,44 @@
+# Optimization
+tune_config:
+      intermediate_dim: tune.choice([20])
+      epochs: tune.choice([100])
+      lr: tune.choice([0.0001, 0.0003, 0.0006, 0.0009, 0.001, 0.003])
+      batch_size: tune.choice([200, 400, 600, 1000])
+      seq_in_length: tune.choice([3,5,7,10])
+      embedding_dim: tune.choice([8,16,32,64])
+      latent_dim: tune.choice([10,20,40,80])
+      n_layers: tune.choice([1,2,3,4])
+      lr_patience: tune.choice([3,5,7])
+
+# Dataset
+dataset:
+  name: 'sentinel'
+  sequential: False
+  sample_rate: "4s"
+  scale: True
+  clean: True
+  feats: 'all'
+  columns: ['RW1_motcurr', 'RW2_motcurr', 'RW3_motcurr', 'RW4_motcurr', 'RW1_therm',
+          'RW2_therm', 'RW3_therm', 'RW4_therm', 'RW1_speed', 'RW2_speed',
+          'RW3_speed', 'RW4_speed', 'RW1_cmd_volt', 'RW2_cmd_volt',
+          'RW3_cmd_volt', 'RW4_cmd_volt']
+  dataset_subset: 1000
+  columns_subset: 0
+  target: None
+
+# Model
+model:
+  name: 'lstm_ae'
+
+resources:
+  gpu_trial: 0.25
+  cpu_trial: 4
+
+opt:
+  fine_tuning: False
+  tune_report: 'val_loss'
+  k_fold_cv: 0
+  metrics: ['train_loss', 'val_loss']
+  order_by: 'val_loss'
+  num_workers: 0
+
