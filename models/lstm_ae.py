@@ -102,7 +102,7 @@ class LSTM_AE(nn.Module):
                                self.output_size, self.latent_dim, self.n_layers)
 
     def forward(self, x):
-        torch.manual_seed(0)
+        #torch.manual_seed(0)
         encoded = self.encoder(x)
         decoded = self.decoder(encoded)
         return x, encoded, decoded

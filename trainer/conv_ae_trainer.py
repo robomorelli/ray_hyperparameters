@@ -9,7 +9,7 @@ from torch import nn
 from config import *
 from models.utils.losses import *
 
-class trainLSTMAE(tune.Trainable):
+class trainCONVAE(tune.Trainable):
 
     def setup(self, config):
         self.cfg = OmegaConf.load(config_path + lstm_ae_config_file) #here use only vae conf file
@@ -20,27 +20,31 @@ class trainLSTMAE(tune.Trainable):
         self.embedding_dim = config['embedding_dim']
         self.latent_dim = config['latent_dim']
         self.n_layers = config['n_layers']
+        self.filter_num = config['filter_num']
         self.lr = config['lr']
         self.batch_size = config['batch_size']
         self.epochs = config['epochs']
         self.lr_patience = config['lr_patience']
+        self.act = config['activation']
 
         # to write on cfg to have later on load dataset
         self.cfg.dataset.sequence_length = self.seq_in_length
         self.cfg.dataset.out_window = self.seq_in_length
 
+        self.act_dict = {'Relu': nn.ReLU, 'Elu': nn.ELU, 'Selu': nn.SELU,'LRelu': nn.LeakyReLU}
+        self.act = self.act_dict[self.cfg.model.act]
         self.trainloader, self.valloader, n_features = get_dataset(self.cfg, batch_size=self.batch_size)
-
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
-        self.model = get_model(self.cfg, seq_in_length=self.seq_in_length, n_features=n_features, embedding_dim=self.embedding_dim,
-                                latent_dim=self.latent_dim, n_layers=self.n_layers, seq_out_lenght=self.seq_in_length).to(self.device)
+
+        self.model = get_model(self.cfg, in_channel=1,  heigth=self.seq_in_length, width=n_features, kernel_size=self.kernel_size,
+                               filter_num=self.filter_num, latent_dim=self.latent_dim, n_layers=self.n_layer,
+                               activation=self.activation).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8,
                                                             patience=self.lr_patience, threshold=0.0001, threshold_mode='rel',
                                                             cooldown=0, min_lr=9e-8, verbose=True)
 
         self.criterion = nn.MSELoss()
-
         self.best_val_loss = 10 ** 16
 
     def step(self):
@@ -48,7 +52,7 @@ class trainLSTMAE(tune.Trainable):
         result = self.train_lstm_ae(checkpoint_dir=None)
         return result
 
-    def train_lstm_ae(self, checkpoint_dir=None):
+    def train_conv_ae(self, checkpoint_dir=None):
         ####Train Loop####
         """
         Set the models to the training mode first and train
@@ -62,13 +66,12 @@ class trainLSTMAE(tune.Trainable):
                 self.optimizer.zero_grad()
 
                 # y.requires_grad_(True)
-                x, enc, y_o = self.model(batch[0].to(self.device))
+                y_o = self.model(batch[0].to(self.device))
                 loss = self.criterion(y_o.to(self.device), batch[1].to(self.device))
                 loss.backward()
                 # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
-                temp_train_loss+= loss.item()
+                temp_train_loss += loss.item()
                 train_steps += 1
-
                 # if (i + 1) % config['gradient_accumulation_steps'] == 0:
                 self.optimizer.step()
 
@@ -85,8 +88,8 @@ class trainLSTMAE(tune.Trainable):
             temp_val_loss = 0
             with torch.no_grad():
                 for i, batch in tqdm(enumerate(self.valloader), total=len(self.valloader), desc="Evaluating"):
-                    x_o, enc, y_o = self.model(batch[0].to(self.device))
-                    loss = self.criterion(y_o.to(self.device), x_o.to(self.device)).item()
+                    y_o = self.model(batch[0].to(self.device))
+                    loss = self.criterion(batch[0].to(self.device), y_o.to(self.device)).item()
                     temp_val_loss += loss
                     val_steps += 1
 
@@ -103,15 +106,15 @@ class trainLSTMAE(tune.Trainable):
                         "val_loss": val_loss}
 
 
-    def test_lstm_ae(self, checkpoint_dir=None):
+    def test_conv_ae(self, checkpoint_dir=None):
         test_loss = 0.0
         test_steps = 0
         self.model.eval()
 
         with torch.no_grad():
             for i, batch in tqdm(enumerate(self.valloader), total=len(self.valloader), desc="Evaluating"):
-                x_o, enc, y_o = self.model(batch[0].to(self.device))
-                loss = self.criterion(y_o.to(self.device), x_o.to(self.device)).item()
+                y_o = self.model(batch[0].to(self.device))
+                loss = self.criterion(y_o.to(self.device), batch[1].to(self.device)).item()
                 test_loss += loss
                 test_steps += 1
 
