@@ -102,7 +102,6 @@ class trainLSTMAE(tune.Trainable):
                 return {"train_loss": train_loss,
                         "val_loss": val_loss}
 
-
     def test_lstm_ae(self, checkpoint_dir=None):
         test_loss = 0.0
         test_steps = 0

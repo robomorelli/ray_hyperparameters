@@ -39,7 +39,7 @@ def main(args):
                         scheduler=sched,
                         stop={"training_iteration": 10 ** 16},
                         resources_per_trial=resources_per_trial,
-                        num_samples=1,
+                        num_samples=600,
                         checkpoint_at_end=True, #otherwise it fails on multinode?
                         #checkpoint_freq=1,
                         local_dir="~/ray_results",
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     parser.add_argument("--config_file", default='lstm_ae', help="the model you want to hpo")
     args = parser.parse_args()
 
-    os.environ['TUNE_MAX_PENDING_TRIALS_PG'] = "12"
+    os.environ['TUNE_MAX_PENDING_TRIALS_PG'] = "24"
 
     # to test on interactive node
     # first start from the terminal: ray start --head

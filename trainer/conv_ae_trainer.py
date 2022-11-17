@@ -12,12 +12,12 @@ from models.utils.losses import *
 class trainCONVAE(tune.Trainable):
 
     def setup(self, config):
-        self.cfg = OmegaConf.load(config_path + lstm_ae_config_file) #here use only vae conf file
+        self.cfg = OmegaConf.load(config_path + conv_ae_config_file) #here use only vae conf file
         self.model_name = '_'.join((self.cfg.model.name, self.cfg.dataset.name)) + '.h5'
 
         #following config keys have to be in the config file of this model
         self.seq_in_length = config['seq_in_length']
-        self.embedding_dim = config['embedding_dim']
+        #self.embedding_dim = config['embedding_dim']
         self.latent_dim = config['latent_dim']
         self.n_layers = config['n_layers']
         self.filter_num = config['filter_num']
@@ -25,19 +25,20 @@ class trainCONVAE(tune.Trainable):
         self.batch_size = config['batch_size']
         self.epochs = config['epochs']
         self.lr_patience = config['lr_patience']
-        self.act = config['activation']
+        self.activation = config['activation']
+        self.kernel_size = config['kernel_size']
 
         # to write on cfg to have later on load dataset
         self.cfg.dataset.sequence_length = self.seq_in_length
         self.cfg.dataset.out_window = self.seq_in_length
 
         self.act_dict = {'Relu': nn.ReLU, 'Elu': nn.ELU, 'Selu': nn.SELU,'LRelu': nn.LeakyReLU}
-        self.act = self.act_dict[self.cfg.model.act]
+        self.activation = self.act_dict[self.activation]
         self.trainloader, self.valloader, n_features = get_dataset(self.cfg, batch_size=self.batch_size)
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
 
         self.model = get_model(self.cfg, in_channel=1,  heigth=self.seq_in_length, width=n_features, kernel_size=self.kernel_size,
-                               filter_num=self.filter_num, latent_dim=self.latent_dim, n_layers=self.n_layer,
+                               filter_num=self.filter_num, latent_dim=self.latent_dim, n_layers=self.n_layers,
                                activation=self.activation).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8,
@@ -49,7 +50,7 @@ class trainCONVAE(tune.Trainable):
 
     def step(self):
         self.current_ip()
-        result = self.train_lstm_ae(checkpoint_dir=None)
+        result = self.train_conv_ae(checkpoint_dir=None)
         return result
 
     def train_conv_ae(self, checkpoint_dir=None):

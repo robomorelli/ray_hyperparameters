@@ -16,20 +16,20 @@ def get_model(cfg, **kwargs):
                     n_lognorm=kwargs['n_lognorm'], n_binomial=kwargs['n_binomial'])
         return model
 
-    if cfg.model.name == "ae":
+    elif cfg.model.name == "ae":
         model = AE(cfg, original_dim=kwargs['original_dim'], intermediate_dim=kwargs['intermediate_dim'],
                     code_dim=kwargs['code_dim'])
         return model
 
-    if cfg.model.name == "lstm_ae":
+    elif cfg.model.name == "lstm_ae":
         model = LSTM_AE(cfg, **kwargs)
         return model
 
-    if cfg.model.name == "conv_ae":
+    elif cfg.model.name == "conv_ae":
         model = CONV_AE(cfg, **kwargs)
         return model
 
-    if cfg.model.name == "cnn3d":
+    elif cfg.model.name == "cnn3d":
         model = CNN3D(cfg, **kwargs)
         # optimizer and criterion should be defined here
         # optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)

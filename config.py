@@ -21,6 +21,7 @@ ray_mapper = {'tune.choice': tune.choice}
 vae_config_file = 'vae.yaml'
 ae_config_file = 'ae.yaml'
 lstm_ae_config_file = 'lstm_ae.yaml'
+conv_ae_config_file = 'conv_ae.yaml'
 cnn3d_config_file = 'cnn3d.yaml'
 
 # nls_kdd use case

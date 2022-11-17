@@ -112,8 +112,8 @@ class CONV_AE(nn.Module):
         super(CONV_AE, self).__init__()
 
         self.in_channel = kwargs['in_channel']
-        self.seq_in_length = kwargs['seq_in_length']
-        self.n_features = kwargs['n_features']
+        self.seq_in_length = kwargs['width']
+        self.n_features = kwargs['heigth']
         self.kernel_size = kwargs['kernel_size']
         self.filter_num = kwargs['filter_num']
         self.latent_dim = kwargs['latent_dim']
