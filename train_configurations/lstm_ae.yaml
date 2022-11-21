@@ -15,8 +15,9 @@ dataset:
   name: 'sentinel'
   sequential: False
   sample_rate: "4s"
-  scale: True
+  scaled: True
   clean: True
+  shuffle: False #shuffle applied on the row of dataset
   feats: 'all'
   columns: ['RW1_motcurr', 'RW2_motcurr', 'RW3_motcurr', 'RW4_motcurr', 'RW1_therm',
           'RW2_therm', 'RW3_therm', 'RW4_therm', 'RW1_speed', 'RW2_speed',
@@ -25,6 +26,8 @@ dataset:
   dataset_subset: 100000
   columns_subset: 0
   target: None
+  predict: False
+  train_val_split: 0.8
 
 # Model
 model:

@@ -27,14 +27,27 @@ class trainCONVAE(tune.Trainable):
         self.lr_patience = config['lr_patience']
         self.activation = config['activation']
         self.kernel_size = config['kernel_size']
+        self.predict = 0
 
         # to write on cfg to have later on load dataset
         self.cfg.dataset.sequence_length = self.seq_in_length
         self.cfg.dataset.out_window = self.seq_in_length
+        self.sample_rate = self.cfg.dataset.sample_rate
+        self.target = False
 
         self.act_dict = {'Relu': nn.ReLU, 'Elu': nn.ELU, 'Selu': nn.SELU,'LRelu': nn.LeakyReLU}
         self.activation = self.act_dict[self.activation]
-        self.trainloader, self.valloader, n_features = get_dataset(self.cfg, batch_size=self.batch_size)
+        self.trainloader, self.valloader, n_features, scaled, columns_subset,\
+        dataset_subset, train_val_split, dataset, data_path = get_dataset(self.cfg, batch_size=self.batch_size, sequence_length = config['seq_in_length'])
+
+        self.scaled = scaled
+        self.n_features = n_features
+        self.columns_subset = columns_subset
+        self.dataset_subset = dataset_subset
+        self.train_val_split = train_val_split
+        self.dataset = dataset
+        self.data_path = data_path
+
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
 
         self.model = get_model(self.cfg, in_channel=1,  heigth=self.seq_in_length, width=n_features, kernel_size=self.kernel_size,
@@ -47,6 +60,16 @@ class trainCONVAE(tune.Trainable):
 
         self.criterion = nn.MSELoss()
         self.best_val_loss = 10 ** 16
+
+
+        self.param_conf = {'columns': self.n_features, 'sequence_length':self.seq_in_length, 'batch_size':self.batch_size ,'predict':self.predict,
+                        'device': self.device, 'out_window':self.seq_in_length, 'n_features':self.n_features, 'scaled':self.scaled,
+                        'sampling_rate':self.sample_rate, 'columns_subset': self.columns_subset, 'dataset_subset':self.dataset_subset,
+                        'target': self.target, 'batch_size': self.batch_size, 'train_val_split': self.train_val_split,
+                        'data_path': self.data_path, 'dataset': self.dataset, 'activation': self.activation, 'kernel_size':self.kernel_size,
+                        'filter_num':self.filter_num, 'latent_dim':self.latent_dim, 'n_layers':self.n_layers}
+
+        self.parameters_number = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     def step(self):
         self.current_ip()
@@ -68,6 +91,8 @@ class trainCONVAE(tune.Trainable):
 
                 # y.requires_grad_(True)
                 y_o = self.model(batch[0].to(self.device))
+                print('shape of yo', y_o.shape)
+                print('shape of batch[0]', batch[1].shape)
                 loss = self.criterion(y_o.to(self.device), batch[1].to(self.device))
                 loss.backward()
                 # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
@@ -101,9 +126,10 @@ class trainCONVAE(tune.Trainable):
             if val_loss < self.best_val_loss:
                 self.best_val_loss = val_loss
                 return {"train_loss": train_loss,
-                        "val_loss": val_loss, "should_checkpoint": True}
+                        "val_loss": val_loss, 'parameters_number': self.parameters_number,
+                        "should_checkpoint": True}
             else:
-                return {"train_loss": train_loss,
+                return {"train_loss": train_loss,'parameters_number': self.parameters_number,
                         "val_loss": val_loss}
 
 
@@ -132,7 +158,9 @@ class trainCONVAE(tune.Trainable):
                 'model_state_dict': self.model.state_dict(),
                 'optimizer_state_dict': self.optimizer.state_dict(),
                 'loss': self.best_val_loss,
-                'cfg': self.cfg
+                'cfg': self.cfg,
+                'parameters_number': self.parameters_number,
+                'param_conf': self.param_conf
             }, f"{checkpoint_dir}/model.pt")
         return os.path.join(checkpoint_dir, "model.pt")
 

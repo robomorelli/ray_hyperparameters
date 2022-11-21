@@ -27,9 +27,25 @@ def get_dataset(cfg, **kwargs):
     """
     if cfg.dataset.name == "sentinel":
 
+        if cfg.model.name == "conv_ae":
+            transform = T.Compose([
+                T.ToTensor(),
+            ])
+
+        else:
+            transform = None
+
         sample_rate = cfg.dataset.sample_rate
         feats = cfg.dataset.feats
         clean = cfg.dataset.clean
+        scaled = cfg.dataset.scaled
+        shuffle = cfg.dataset.shuffle
+        columns_subset = cfg.dataset.columns_subset
+        dataset_subset = cfg.dataset.dataset_subset
+        train_val_split = cfg.dataset.train_val_split
+        sampling_rate = cfg.dataset.sample_rate
+
+        sequence_length = kwargs['sequence_length']
 
         if clean:
             dataset_name = 'dataset_{}/{}_2016-2018_clean_{}.pkl'.format(sample_rate, feats, sample_rate)
@@ -38,21 +54,64 @@ def get_dataset(cfg, **kwargs):
 
         #of = open(os.path.join(sentinel_path, dataset_name), "rb")
         #df = pickle5.load(of)
-        df = pd.read_pickle(os.path.join(sentinel_path, dataset_name))
+        data_path = os.path.join(sentinel_path, dataset_name)
+        df = pd.read_pickle(data_path)
 
         df_train, df_test = prep_sentinel(df, cfg.dataset.columns, columns_subset=cfg.dataset.columns_subset,
-                                               dataset_subset=cfg.dataset.dataset_subset, train_val_split=0.2,
-                                               scale=True)
+                                               dataset_subset=cfg.dataset.dataset_subset, train_val_split=train_val_split,
+                                               scaled=scaled)
+
         n_features = len(df_train.columns)
+
+
         # Dataset for dataloader definition
         train_dataset = Dataset_seq(df_train, target=cfg.dataset.target, sequence_length=cfg.dataset.sequence_length,
-                                    out_window=cfg.dataset.out_window, prediction=False)
+                                    out_window=cfg.dataset.out_window, prediction=False, transform=transform)
         trainloader = DataLoader(dataset=train_dataset, batch_size=kwargs['batch_size'], shuffle=True)
         test_dataset = Dataset_seq(df_test, target=cfg.dataset.target, sequence_length=cfg.dataset.sequence_length,
-                                    out_window=cfg.dataset.out_window, prediction=False)
+                                    out_window=cfg.dataset.out_window, prediction=False, transform=transform)
         valloader = DataLoader(dataset=test_dataset, batch_size=kwargs['batch_size'], shuffle=True)
 
-        return trainloader, valloader, n_features
+        print('root path', root)
+        print('root path', root)
+        print('root path', root)
+        print('root path', root)
+
+        if 'conv' not in cfg.model.name:
+            if scaled:
+                if not shuffle:
+                    torch.save(trainloader, os.path.join(root,'dataloader/train_dataloader_{}_ft_{}_{}.pth'.format(n_features,
+                                                                                                     sampling_rate,
+                                                                                                     sequence_length)))
+                    torch.save(valloader, os.path.join(root,'dataloader/test_dataloader_{}_ft_{}_{}.pth'.format(n_features,
+                                                                                                   sampling_rate,
+                                                                                                   sequence_length)))
+                else:
+                    torch.save(trainloader,
+                        os.path.join(root,'dataloader/train_dataloader_{}_ft_{}_{}_shuffle.pth'.format(n_features,
+                                                                                                 sampling_rate,
+                                                                                                 sequence_length)))
+                    torch.save(valloader,
+                        os.path.join(root,'dataloader/test_dataloader_{}_ft_{}_{}_shuffle.pth'.format(n_features,
+                                                                                                sampling_rate,
+                                                                                                sequence_length)))
+            else:
+                if not shuffle:
+                    torch.save(trainloader,
+                        os.path.join(root,'dataloader/train_dataloader_not_scaled_{}_ft_{}_{}.pth'.format(n_features,
+                                                                                                    sampling_rate,
+                                                                                                    sequence_length)))
+                    torch.save(valloader,
+                        os.path.join(root,'dataloader/test_dataloader_not_scaled_{}_ft_{}_{}.pth'.format(n_features,
+                                                                                                   sampling_rate,
+                                                                                                   sequence_length)))
+                else:
+                    torch.save(trainloader, os.path.join(root,'dataloader/train_dataloader_not_scaled_{}_ft_{}_{}_shuffle.pth'.format(
+                        n_features, sampling_rate, sequence_length)))
+                    torch.save(valloader, os.path.join(root,'dataloader/test_dataloader_not_scaled_{}_ft_{}_{}_shuffle.pth'.format(
+                        n_features, sampling_rate, sequence_length)))
+
+        return trainloader, valloader, n_features, scaled, columns_subset, dataset_subset, train_val_split, dataset_name, data_path
 
     if cfg.dataset.name == "nls_kdd":
         # Preprocessing step (there is also testx to use for example in test accuray in trainer step

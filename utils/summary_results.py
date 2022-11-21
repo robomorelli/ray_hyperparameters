@@ -4,16 +4,19 @@ import os
 from os.path import expanduser
 from omegaconf import OmegaConf
 from pathlib import Path
+import sys
+sys.path.append('..')
 from config import *
 
 def main(args):
     config_file = args.experiment_name.split('/')[0]
-    config_path_rebase = Path(config_path).parents[1].as_posix()
+    #config_path_rebase = Path(config_path).parents[1].as_posix()
+    config_path_rebase = root
     cfg = OmegaConf.load(os.path.join(config_path_rebase,'train_configurations', config_file + '.yaml'))
     folder = os.path.join(args.experiment_path, args.experiment_name)
     exp_names = os.listdir(folder)
-    #metrics = list(cfg.opt.metrics)
-    metrics= ['train_loss', 'val_loss', 'val_acc', 'val_f1']
+    metrics = list(cfg.opt.metrics)
+    #metrics= ['train_loss', 'val_loss', 'val_acc', 'val_f1']
     losses = [x for x in metrics if 'loss' in x]
 
     for l in losses:
@@ -43,7 +46,7 @@ if __name__ == "__main__":
     base_path = os.path.join(home,'ray_results')
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment_path", default=base_path, help="the model you want to hpo")
-    parser.add_argument("--experiment_name", default='cnn3d/10-11-22:18:10:38', help="the model you want to hpo")
+    parser.add_argument("--experiment_name", default='conv_ae/11-17-22:16:29:31', help="the model you want to hpo")
     args = parser.parse_args()
 
     main(args)
