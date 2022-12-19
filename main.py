@@ -39,11 +39,13 @@ def main(args):
                         scheduler=sched,
                         stop={"training_iteration": 10 ** 16},
                         resources_per_trial=resources_per_trial,
-                        num_samples=400,
+                        num_samples=100,
                         checkpoint_at_end=True, #otherwise it fails on multinode?
                         #checkpoint_freq=1,
                         local_dir="~/ray_results",
-                        name="{}/{}".format(cfg.model.name, date.replace('/', '-')),
+                        name="{}/4_wheel_system_{}_reducing_hyper_2_sl7_emb8".format(cfg.model.name,
+                                                                         date.replace('/', '-')
+                                                                         ),
                         config=config)
 
     print("Best config is:", analysis.get_best_config(metric="val_loss", mode="min"))
@@ -60,7 +62,7 @@ if __name__ == "__main__":
     parser.add_argument("--config_file", default='lstm_ae', help="the model you want to hpo")
     args = parser.parse_args()
 
-    os.environ['TUNE_MAX_PENDING_TRIALS_PG'] = "24"
+    os.environ['TUNE_MAX_PENDING_TRIALS_PG'] = "12"
 
     # to test on interactive node
     # first start from the terminal: ray start --head

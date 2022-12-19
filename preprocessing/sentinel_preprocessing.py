@@ -22,7 +22,8 @@ def prep_sentinel(df, columns, columns_subset, dataset_subset = 10000, train_val
     else:
         dfNorm = pd.DataFrame(x, columns=df.columns)
 
-    X_train, X_test, y_train, y_test = train_test_split(dfNorm, dfNorm, train_size=train_val_split, shuffle=shuffle)
+    X_train, X_test, y_train, y_test = train_test_split(dfNorm, dfNorm, train_size=train_val_split,
+                                                        shuffle=shuffle)
     df_train = pd.DataFrame(X_train, columns=dfNorm.columns)
     df_test = pd.DataFrame(X_test, columns=dfNorm.columns)
 

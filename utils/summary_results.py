@@ -15,9 +15,10 @@ def main(args):
     cfg = OmegaConf.load(os.path.join(config_path_rebase,'train_configurations', config_file + '.yaml'))
     folder = os.path.join(args.experiment_path, args.experiment_name)
     exp_names = os.listdir(folder)
-    metrics = list(cfg.opt.metrics)
+    metrics = list(cfg.opt.metrics) + ['parameters_number']
     #metrics= ['train_loss', 'val_loss', 'val_acc', 'val_f1']
     losses = [x for x in metrics if 'loss' in x]
+    losses = losses
 
     for l in losses:
         metrics.remove(l)
@@ -46,7 +47,6 @@ if __name__ == "__main__":
     base_path = os.path.join(home,'ray_results')
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment_path", default=base_path, help="the model you want to hpo")
-    parser.add_argument("--experiment_name", default='conv_ae/11-17-22:16:29:31', help="the model you want to hpo")
+    parser.add_argument("--experiment_name", default='lstm_ae/4_wheel_system_12-16-22:11:51:59_reducing_hyper_1', help="the model you want to hpo")
     args = parser.parse_args()
-
     main(args)

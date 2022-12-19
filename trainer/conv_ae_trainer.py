@@ -69,7 +69,7 @@ class trainCONVAE(tune.Trainable):
                         'data_path': self.data_path, 'dataset': self.dataset, 'activation': self.activation, 'kernel_size':self.kernel_size,
                         'filter_num':self.filter_num, 'latent_dim':self.latent_dim, 'n_layers':self.n_layers}
 
-        self.parameters_number = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        self.parameters_number = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
     def step(self):
         self.current_ip()
@@ -91,8 +91,6 @@ class trainCONVAE(tune.Trainable):
 
                 # y.requires_grad_(True)
                 y_o = self.model(batch[0].to(self.device))
-                print('shape of yo', y_o.shape)
-                print('shape of batch[0]', batch[1].shape)
                 loss = self.criterion(y_o.to(self.device), batch[1].to(self.device))
                 loss.backward()
                 # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)

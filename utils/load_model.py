@@ -2,6 +2,7 @@ from models.vae import VAE
 from models.autoencoder import AE
 from models.lstm_ae import LSTM_AE
 from models.conv_ae import CONV_AE
+from models.lstm_vae import LSTM_VAE
 from models.cnn3d import CNN3D
 
 def get_model(cfg, **kwargs):
@@ -23,10 +24,20 @@ def get_model(cfg, **kwargs):
 
     elif cfg.model.name == "lstm_ae":
         model = LSTM_AE(cfg, **kwargs)
+        print('loading lstm_ae')
+        print(model)
         return model
 
     elif cfg.model.name == "conv_ae":
         model = CONV_AE(cfg, **kwargs)
+        print('loading conv_ae')
+        print(model)
+        return model
+
+    elif cfg.model.name == "lstm_vae":
+        model = LSTM_VAE(cfg, **kwargs)
+        print('loading lstm_vae')
+        print(model)
         return model
 
     elif cfg.model.name == "cnn3d":

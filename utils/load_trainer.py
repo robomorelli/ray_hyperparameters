@@ -4,6 +4,7 @@ from trainer.vae_trainer import trainVae
 from trainer.ae_trainer import trainAe
 from trainer.cnn3d_trainer import trainCNN3D
 from trainer.lstm_ae_trainer import trainLSTMAE
+from trainer.lstm_vae_trainer import trainLSTMVAE
 from trainer.conv_ae_trainer import trainCONVAE
 
 def get_trainer(cfg, **kwargs):
@@ -23,3 +24,5 @@ def get_trainer(cfg, **kwargs):
         return trainLSTMAE
     if cfg.model.name == "conv_ae":
         return trainCONVAE
+    if cfg.model.name == "lstm_vae":
+        return trainLSTMVAE

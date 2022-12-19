@@ -70,12 +70,8 @@ def get_dataset(cfg, **kwargs):
         trainloader = DataLoader(dataset=train_dataset, batch_size=kwargs['batch_size'], shuffle=True)
         test_dataset = Dataset_seq(df_test, target=cfg.dataset.target, sequence_length=cfg.dataset.sequence_length,
                                     out_window=cfg.dataset.out_window, prediction=False, transform=transform)
-        valloader = DataLoader(dataset=test_dataset, batch_size=kwargs['batch_size'], shuffle=True)
+        valloader = DataLoader(dataset=test_dataset, batch_size=kwargs['batch_size'], shuffle=False)
 
-        print('root path', root)
-        print('root path', root)
-        print('root path', root)
-        print('root path', root)
 
         if 'conv' not in cfg.model.name:
             if scaled:

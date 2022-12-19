@@ -137,7 +137,26 @@ def deconv_block(in_f, out_f, kernel_size = 2, stride = 2, activation=nn.ReLU(),
                     nn.ConvTranspose2d(in_f, out_f, kernel_size, stride *args, **kwargs))
 
 
+class LinConstr(nn.Module):
+    def __init__(self, in_features, out_features):
+        super(LinConstr, self).__init__()
+        self.weight = nn.Parameter(torch.randn(out_features, in_features))
+        self.bias = nn.Parameter(torch.randn(out_features))
 
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        if self.bias is not None:
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.bias, -bound, bound)
+
+    def _max_norm(self, w):
+        norm = w.norm(2, dim=0, keepdim=True)
+        desired = torch.clamp(norm, 0, self._max_norm_val)
+        return w * (desired / (self._eps + norm))
+
+    def forward(self, x):
+        x = F.linear(x, self.weight.clamp(min=-1.0*10**6, max=1.0*10**6), self.bias)
+        return x
 '''
 class Linear(Module):
     r"""Applies a linear transformation to the incoming data: :math:`y = xA^T + b`
