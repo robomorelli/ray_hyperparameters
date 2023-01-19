@@ -1,17 +1,17 @@
 # Optimization
 tune_config:
       #intermediate_dim: tune.choice([20, 40, 50])
-      epochs: tune.choice([200, 300])
-      lr: tune.choice([0.003, 0.001, 0.0009, 0.0003, 0.0001, 0.00001])
-      lr_patience: tune.choice([3, 5, 7, 10])
-      act: tune.choice(['Relu', 'Elu', 'Selu', 'LRelu'])
-      batch_size: tune.choice([10, 20, 30, 40, 60])
-      patch_size: tune.choice([3, 5, 7])
-      num_filter: tune.choice([10, 20, 40, 60, 100])
+      epochs: tune.choice([200])
+      lr: tune.choice([0.0001])
+      lr_patience: tune.choice([5])
+      act: tune.choice(['LRelu'])
+      batch_size: tune.choice([20])
+      patch_size: tune.choice([7])
+      num_filter: tune.choice([40])
       filter_size: tune.choice([3])
-      augmentation: tune.choice([1])
-      oversampling: tune.choice([1])
-      optimizer_name: tune.choice(['adam', 'adadelta', 'sgd'])
+      augmentation: tune.choice([0])
+      oversampling: tune.choice([0])
+      optimizer_name: tune.choice(['adam'])
 
       #l1: 'tune.sample_from(lambda _: 2 ** np.random.randint(2, 9))'
       #l2: 'tune.sample_from(lambda _: 2 ** np.random.randint(2, 9))'
@@ -22,8 +22,8 @@ dataset:
   name: 'albania_supervised'
   sequential: False
   in_channel: 288
-  coords_path: "/data/hyper/albania/mosaic/merged_3_patches.pkl" #Take relative path
-  test_coords_path: "/data/hyper/albania/mosaic/merged_3_patches.pkl"
+  coords_path: "/data/hyper/albania/mosaic/train_val_dict_merged_12k.pkl" #Take relative path
+  test_coords_path: "/data/hyper/albania/mosaic/train_val_dict_merged_12k.pkl"
   train_split: 0.70
   from_dictionary: True
 
@@ -34,13 +34,13 @@ model:
   class_number: 1 # switchig to crossentropu use 2 n_ckasse that it means 2 output neurons >>> crossenetropy loss (not binary) with Softmax out of the box
 
 resources:
-  gpu_trial: 0.25
-  cpu_trial: 4
+  gpu_trial: 1
+  cpu_trial: 12
 
 opt:
   fine_tuning: False
   tune_report: 'val_loss'
-  k_fold_cv: 5
+  k_fold_cv: 0
   metrics: ['train_loss', 'val_loss', 'val_acc', 'val_f1', 'test_acc', 'test_f1']
   order_by: 'val_f1'
   num_workers: 0

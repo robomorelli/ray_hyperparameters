@@ -34,18 +34,24 @@ def main(args):
         resources_per_trial = {"cpu": cfg.resources.cpu_trial}
 
 
-    sched =  HyperBandScheduler(metric=cfg.opt.tune_report, mode="min", max_t=400)
+    #sched =  HyperBandScheduler(metric=cfg.opt.tune_report, mode="min", max_t=400)
+    sched = ASHAScheduler(metric=cfg.opt.tune_report, mode="min", max_t = 10 ** 18)
+                                                        #grace_period=10 ** 16)
     analysis = tune.run(trainer,
                         scheduler=sched,
-                        stop={"training_iteration": 10 ** 16},
+                        #stop={"training_iteration": 10 ** 16},
                         resources_per_trial=resources_per_trial,
-                        num_samples=100,
+                        num_samples=4,
                         checkpoint_at_end=True, #otherwise it fails on multinode?
                         #checkpoint_freq=1,
                         local_dir="~/ray_results",
-                        name="{}/4_wheel_system_{}_reducing_hyper_2_sl7_emb8".format(cfg.model.name,
+                        name="{}/test_hyper_{}".format(cfg.model.name,
                                                                          date.replace('/', '-')
                                                                          ),
+
+                        #name="{}/4_wheel_system_{}_12k_10M_sl_30".format(cfg.model.name,
+                        #                                                 date.replace('/', '-')
+                        #                                                 ),
                         config=config)
 
     print("Best config is:", analysis.get_best_config(metric="val_loss", mode="min"))

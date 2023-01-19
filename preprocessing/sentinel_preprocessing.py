@@ -3,7 +3,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import os
 
-def prep_sentinel(df, columns, columns_subset, dataset_subset = 10000, train_val_split=0.8, scaled=True, shuffle=False):
+def prep_sentinel(df, columns, columns_subset,
+                  dataset_subset = 10000, train_val_split=0.8,
+                  scaled=True, shuffle=False):
 
     if columns_subset:
         columns = columns[:columns_subset]

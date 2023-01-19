@@ -19,7 +19,8 @@ class trainLSTMAE(tune.Trainable):
         self.seq_in_length = config['seq_in_length']
         self.embedding_dim = config['embedding_dim']
         self.latent_dim = config['latent_dim']
-        self.n_layers = config['n_layers']
+        self.n_layers_1 = config['n_layers_cell_1']
+        self.n_layers_2 = config['n_layers_cell_2']
         self.lr = config['lr']
         self.batch_size = config['batch_size']
         self.epochs = config['epochs']
@@ -45,7 +46,8 @@ class trainLSTMAE(tune.Trainable):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
         self.model = get_model(self.cfg, seq_in_length=self.seq_in_length, n_features=n_features, embedding_dim=self.embedding_dim,
-                                latent_dim=self.latent_dim, n_layers=self.n_layers, seq_out_lenght=self.seq_in_length).to(self.device)
+                                latent_dim=self.latent_dim, n_layers_1=self.n_layers_1, n_layers_2=self.n_layers_2,
+                               seq_out_lenght=self.seq_in_length).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8,
                                                             patience=self.lr_patience, threshold=0.0001, threshold_mode='rel',
@@ -62,7 +64,8 @@ class trainLSTMAE(tune.Trainable):
                            'n_features':self.n_features, 'scaled':self.scaled,
                         'sampling_rate':self.sample_rate, 'output_size': self.n_features,
                            'embedding_dim': self.embedding_dim, 'latent_dim':self.latent_dim,
-                           'n_layers': self.n_layers}
+                           'n_layers_1': self.n_layers_1,
+                           'n_layers_2': self.n_layers_2}
         self.parameters_number = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
     def step(self):

@@ -1,14 +1,15 @@
 # Optimization
 tune_config:
       #intermediate_dim: tune.choice([1, 2, 5, 10, 20])
-      epochs: tune.choice([500])
-      lr: tune.choice([0.001, 0.0001, 0.0003, 0.0006, 0.0009])
-      batch_size: tune.choice([10, 50, 100, 200, 500, 1000])
-      seq_in_length: tune.choice([7])
+      epochs: tune.choice([200])
+      lr: tune.choice([0.0009])
+      batch_size: tune.choice([1000])
+      seq_in_length: tune.choice([30])
       embedding_dim: tune.choice([8])
-      latent_dim: tune.choice([10, 15, 20])
-      n_layers: tune.choice([1, 2, 3])
-      lr_patience: tune.choice([3,5,7])
+      latent_dim: tune.choice([40])
+      n_layers_cell_1: tune.choice([2])
+      n_layers_cell_2: tune.choice([2])
+      lr_patience: tune.choice([5])
 
 # Dataset
 dataset:
@@ -23,7 +24,7 @@ dataset:
              'RW1_therm', 'RW2_therm', 'RW3_therm', 'RW4_therm',
             'RW1_speed', 'RW2_speed', 'RW3_speed', 'RW4_speed',
             'RW1_cmd_volt', 'RW2_cmd_volt', 'RW3_cmd_volt', 'RW4_cmd_volt']
-  dataset_subset: 1000000
+  dataset_subset: 10000000
   columns_subset: 0
   target: None
   predict: False
@@ -43,5 +44,5 @@ opt:
   k_fold_cv: 0
   metrics: ['train_loss', 'val_loss']
   order_by: 'val_loss'
-  num_workers: 0
+  num_workers: 12
 
