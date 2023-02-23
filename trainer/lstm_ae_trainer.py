@@ -25,6 +25,10 @@ class trainLSTMAE(tune.Trainable):
         self.batch_size = config['batch_size']
         self.epochs = config['epochs']
         self.lr_patience = config['lr_patience']
+        self.activation = config['activation']
+
+        self.act_dict = {'Relu': nn.ReLU(), 'Elu': nn.ELU(), 'Selu': nn.SELU(),'LRelu': nn.LeakyReLU(), 'None': None}
+        self.activation = self.act_dict[self.activation]
 
         self.sample_rate = self.cfg.dataset.sample_rate
         self.target = self.cfg.dataset.target
@@ -47,7 +51,7 @@ class trainLSTMAE(tune.Trainable):
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
         self.model = get_model(self.cfg, seq_in_length=self.seq_in_length, n_features=n_features, embedding_dim=self.embedding_dim,
                                 latent_dim=self.latent_dim, n_layers_1=self.n_layers_1, n_layers_2=self.n_layers_2,
-                               seq_out_lenght=self.seq_in_length).to(self.device)
+                               seq_out_lenght=self.seq_in_length, activation=self.activation).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8,
                                                             patience=self.lr_patience, threshold=0.0001, threshold_mode='rel',
@@ -65,7 +69,8 @@ class trainLSTMAE(tune.Trainable):
                         'sampling_rate':self.sample_rate, 'output_size': self.n_features,
                            'embedding_dim': self.embedding_dim, 'latent_dim':self.latent_dim,
                            'n_layers_1': self.n_layers_1,
-                           'n_layers_2': self.n_layers_2}
+                           'n_layers_2': self.n_layers_2,
+                           'activation':self.activation}
         self.parameters_number = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
     def step(self):

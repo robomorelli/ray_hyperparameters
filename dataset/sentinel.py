@@ -7,19 +7,23 @@ class Dataset_seq(Dataset):
     #   for the anomaly detection task.
 
     # TODO: implement also the forecasting (the idx of target is shifted ahead of many steps of the forecasting window
-    def __init__(self, df, target = None, sequence_length=4, out_window = 4,
-                 prediction = False, forecast = False, transform=None):
+    def __init__(self, df, target=None, sequence_length=4, out_window=4,
+                 prediction=False, forecast=False, forecast_all=False, transform=None):
 
         self.prediction = prediction
         self.forecast = forecast
+        self.forecast_all = forecast_all
         self.transform = transform
         #TODO raise error if prediction == true but target is not defined
-        if (self.prediction) and (not self.forecast):
+        if self.prediction and not self.forecast:
             self.df_data = df.drop(target, axis=1)
             self.targets = df[target]
         elif self.forecast:
             self.df_data = df
             self.targets = df[target]
+        elif self.forecast_all: # In case of recontruction
+            self.df_data = df  # In case of recontruction
+            self.targets = df  # In case of recontruction
         else: # In case of recontruction
             self.df_data = df  # In case of recontruction
             self.targets = df  # In case of recontruction
@@ -31,20 +35,20 @@ class Dataset_seq(Dataset):
         return len(self.df_data)
 
     def __getitem__(self, idx):
-        if self.forecast:
+        if self.forecast or self.forecast_all or self.prediction:
             if (idx + self.sequence_length + self.out_window) > len(self.df_data):
-                indexes = list(range(len(self.df_data) - self.sequence_length, len(self.df_data)))
-                indexes_out = list(range(len(self.df_data), len(self.df_data) + self.out_window))
+                indexes = list(range(len(self.df_data) - self.sequence_length - self.out_window,
+                                     len(self.df_data) - self.out_window))
+                indexes_out = list(range(len(self.df_data) - self.out_window, len(self.df_data)))
             else:
                 indexes = list(range(idx, idx + self.sequence_length))
                 indexes_out = list(range(idx + self.sequence_length, idx + self.sequence_length + self.out_window))
-        else:
 
+        else:
             if (idx + self.sequence_length) > len(self.df_data):
                 indexes = list(range(len(self.df_data) - self.sequence_length, len(self.df_data)))
             else:
                 indexes = list(range(idx, idx + self.sequence_length))
-
             indexes_out = indexes[-self.out_window:]
 
         data = self.df_data.iloc[indexes, :].values
@@ -54,4 +58,4 @@ class Dataset_seq(Dataset):
             data = self.transform(data)
             target = self.transform(target)
 
-        return torch.tensor(data).float(), torch.tensor(target).float()  #torch.from_numpy(x).float()
+        return torch.tensor(data).float(), torch.tensor(target).float()

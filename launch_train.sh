@@ -1,13 +1,13 @@
 #!/bin/bash
 
-#PBS -N test_hyper
+#PBS -N 4_wheel_system_conv_ae_sl_16_run_4
 #PBS -o ray_hpo.txt
 #PBS -q gpu
 #PBS -e ray_hpo_error.txt
 #PBS -k oe
 #PBS -m e
 #PBS -M roberto.morelli.ext@leonardocompany.com
-#PBS -l select=1:ngpus=4:ncpus=48,walltime=72:00:00
+#PBS -l select=4:ngpus=4:ncpus=48,walltime=72:00:00
 
 ##PBS_O_WORKDIR = "${PBS_O_WORKDIR}/artificial_intelligence/repos/fdir"
 ##echo "PBS WORKDIR: {$PBS_O_WORKDIR}"

@@ -3,6 +3,8 @@ from torch import nn
 from pathlib import Path
 from utils.load_dataset import get_dataset
 from omegaconf import OmegaConf
+import sys
+sys.path.append('../')
 from utils.load_model import get_model
 from utils.load_dataset import get_dataset
 from config import *

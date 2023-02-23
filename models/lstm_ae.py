@@ -9,7 +9,8 @@ from tqdm import tqdm
 torch.manual_seed(0)
 
 class Encoder(nn.Module):
-    def __init__(self, seq_in, n_features, embedding_size, latent_dim, n_layers_1=2,  n_layers_2=1):
+    def __init__(self, seq_in, n_features, embedding_size, latent_dim, n_layers_1=2,
+                 n_layers_2=1, activation=None):
         super().__init__()
 
         # self.seq_len = seq_in
@@ -19,6 +20,7 @@ class Encoder(nn.Module):
         self.n_layers_2 = n_layers_2
         self.hidden_size = (2 * embedding_size)  # The number of features in the hidden state h
         self.latent_dim = latent_dim
+        self.activation = activation
 
         self.LSTMenc = nn.LSTM(
             input_size=n_features,
@@ -34,6 +36,9 @@ class Encoder(nn.Module):
         )
         self.enc = nn.Linear(embedding_size, self.latent_dim)
 
+        if self.activation is not None:
+            self.activation = activation
+
     def forward(self, x):
         # Inputs: input, (h_0, c_0). -> If (h_0, c_0) is not provided, both h_0 and c_0 default to zero.
         # x is the output and so the size is > (batch, seq_len, hidden_size)
@@ -44,6 +49,8 @@ class Encoder(nn.Module):
         last_lstm_layer_hidden_state = hidden_state[-1, :, :] #take only the last layer
         #we need hidden state only here because is like our encoding of the time series
         enc = self.enc(last_lstm_layer_hidden_state)
+        if self.activation is not None:
+            self.activation(x)
         return enc
 
 # (2) Decoder
@@ -98,9 +105,10 @@ class LSTM_AE(nn.Module):
         self.n_layers_2 = kwargs['n_layers_2']
         self.seq_out_length = kwargs['seq_in_length']
         self.output_size = kwargs['n_features']
+        self.activation = kwargs['activation']
 
         self.encoder = Encoder(self.seq_in_length, self.n_features,
-                               self.embedding_dim, self.latent_dim, self.n_layers_1, self.n_layers_2)
+                               self.embedding_dim, self.latent_dim, self.n_layers_1, self.n_layers_2, self.activation)
         self.decoder = Decoder(self.seq_out_length, self.embedding_dim,
                                self.output_size, self.latent_dim, self.n_layers_1, self.n_layers_2)
 

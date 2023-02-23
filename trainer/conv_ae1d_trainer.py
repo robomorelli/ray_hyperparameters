@@ -9,16 +9,13 @@ from torch import nn
 from config import *
 from models.utils.losses import *
 
-class trainCONVAE(tune.Trainable):
+class trainCONVAE1D(tune.Trainable):
 
     def setup(self, config):
-        self.cfg = OmegaConf.load(config_path + conv_ae_config_file) #here use only vae conf file
+        self.cfg = OmegaConf.load(config_path + conv_ae_1D_config_file) #here use only vae conf file
         self.model_name = '_'.join((self.cfg.model.name, self.cfg.dataset.name)) + '.h5'
 
-        #following config keys have to be in the config file of this model
-        self.seq_in_length = config['seq_in_length']
-        #self.embedding_dim = config['embedding_dim']
-        self.latent_dim = config['latent_dim']
+        self.length = config['seq_in_length']
         self.n_layers = config['n_layers']
         self.filter_num = config['filter_num']
         self.lr = config['lr']
@@ -27,21 +24,26 @@ class trainCONVAE(tune.Trainable):
         self.lr_patience = config['lr_patience']
         self.activation = config['activation']
         self.kernel_size = config['kernel_size']
+        self.pool = config['pool']
         self.dilation = config['dilation']
+
+        self.pool_dict = {'True':True, 'False': False}
+        self.pool = self.pool_dict[self.pool]
+        if not self.pool:
+            self.stride=2
         self.predict = 0
-        self.padding = int((self.dilation * (self.kernel_size - 1) / 2))
 
         # to write on cfg to have later on load dataset
-        self.cfg.dataset.sequence_length = self.seq_in_length
-        self.cfg.dataset.out_window = self.seq_in_length
+        self.cfg.dataset.sequence_length = self.length
+        self.cfg.dataset.out_window = self.length
         self.sample_rate = self.cfg.dataset.sample_rate
         self.target = False
 
         self.act_dict = {'Relu': nn.ReLU(), 'Elu': nn.ELU(), 'Selu': nn.SELU(),'LRelu': nn.LeakyReLU()}
         self.activation = self.act_dict[self.activation]
         self.trainloader, self.valloader, n_features, scaled, columns_subset,\
-        dataset_subset, train_val_split, dataset, data_path = get_dataset(self.cfg, batch_size=self.batch_size, sequence_length = config['seq_in_length'])
-
+        dataset_subset, train_val_split, dataset, data_path = get_dataset(self.cfg, batch_size=self.batch_size
+                                                                          , sequence_length=config['seq_in_length'])
         self.scaled = scaled
         self.n_features = n_features
         self.columns_subset = columns_subset
@@ -49,39 +51,44 @@ class trainCONVAE(tune.Trainable):
         self.train_val_split = train_val_split
         self.dataset = dataset
         self.data_path = data_path
+        self.padding = int((self.dilation * (self.kernel_size-1)/2))
+
+        if self.pool == False:
+            self.stride = 2
+        else:
+            self.stride = 1
 
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
 
-        self.model = get_model(self.cfg, in_channel=1,  heigth=self.seq_in_length, width=n_features,
+        self.model = get_model(self.cfg, in_channel=self.n_features ,  length=self.length,
                                kernel_size=self.kernel_size,
-                               filter_num=self.filter_num, latent_dim=self.latent_dim, n_layers=self.n_layers,
-                               activation=self.activation,
-                               padding=self.padding).to(self.device)
+                               filter_num=self.filter_num, n_layers=self.n_layers,
+                               activation=self.activation, pool=self.pool, stride = self.stride, padding = self.padding).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8,
                                                             patience=self.lr_patience, threshold=0.0001, threshold_mode='rel',
                                                             cooldown=0, min_lr=9e-8, verbose=True)
 
+        print(self.model)
+
         self.criterion = nn.MSELoss()
         self.best_val_loss = 10 ** 16
 
-
-        self.param_conf = {'columns': self.n_features, 'sequence_length':self.seq_in_length, 'batch_size':self.batch_size ,'predict':self.predict,
-                        'device': self.device, 'out_window':self.seq_in_length, 'n_features':self.n_features, 'scaled':self.scaled,
+        self.param_conf = {'columns': self.n_features, 'length':self.length ,'predict':self.predict, 'sequence_length':self.length,
+                        'device': self.device, 'out_window':self.length, 'in_channel':self.n_features, 'n_features':self.n_features, 'scaled':self.scaled,
                         'sampling_rate':self.sample_rate, 'columns_subset': self.columns_subset, 'dataset_subset':self.dataset_subset,
                         'target': self.target, 'batch_size': self.batch_size, 'train_val_split': self.train_val_split,
                         'data_path': self.data_path, 'dataset': self.dataset, 'activation': self.activation, 'kernel_size':self.kernel_size,
-                        'filter_num':self.filter_num, 'latent_dim':self.latent_dim, 'n_layers':self.n_layers,
-                        'padding':self.padding, 'dilation':self.dilation}
+                        'filter_num':self.filter_num, 'n_layers':self.n_layers, 'pool':self.pool, 'stride':self.stride, 'padding':self.padding}
 
         self.parameters_number = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
     def step(self):
         self.current_ip()
-        result = self.train_conv_ae(checkpoint_dir=None)
+        result = self.train_conv_ae1D(checkpoint_dir=None)
         return result
 
-    def train_conv_ae(self, checkpoint_dir=None):
+    def train_conv_ae1D(self, checkpoint_dir=None):
         ####Train Loop####
         """
         Set the models to the training mode first and train
@@ -135,7 +142,6 @@ class trainCONVAE(tune.Trainable):
                 return {"train_loss": train_loss,'parameters_number': self.parameters_number,
                         "val_loss": val_loss}
 
-
     def test_conv_ae(self, checkpoint_dir=None):
         test_loss = 0.0
         test_steps = 0
@@ -143,7 +149,6 @@ class trainCONVAE(tune.Trainable):
 
         with torch.no_grad():
             for i, batch in tqdm(enumerate(self.valloader), total=len(self.valloader), desc="Evaluating"):
-                print(batch[0].shape())
                 y_o = self.model(batch[0].to(self.device))
                 loss = self.criterion(y_o.to(self.device), batch[1].to(self.device)).item()
                 test_loss += loss
@@ -170,7 +175,6 @@ class trainCONVAE(tune.Trainable):
 
     def load_checkpoint(self, checkpoint_path):
         self.model.load_state_dict(torch.load(checkpoint_path))
-
         # this is currently needed to handle Cori GPU multiple interfaces
 
     def current_ip(self):

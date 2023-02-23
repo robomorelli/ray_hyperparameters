@@ -10,6 +10,7 @@ from config import *
 
 def main(args):
     config_file = args.experiment_name.split('/')[0]
+    #config_path_rebase = Path(config_path).parents[1].as_posix()
     config_path_rebase = root
     cfg = OmegaConf.load(os.path.join(config_path_rebase,'train_configurations', config_file + '.yaml'))
     folder = os.path.join(args.experiment_path, args.experiment_name)
@@ -37,7 +38,14 @@ def main(args):
             summary_df = summary_df.append(dict, ignore_index=True)
 
     summary_df.sort_values(by=[cfg.opt.order_by], ascending=False, inplace=True)
+
+
+
     summary_df.to_csv(os.path.join(folder, 'summary.csv'))
+    df = pd.read_csv(os.path.join(folder, 'summary.csv'))
+
+    df_sorted = df.sort_values(by='val_loss')
+    df_sorted = df_sorted.iloc[:ranking,:].name.values.copy()
 
 
 if __name__ == "__main__":
@@ -46,14 +54,7 @@ if __name__ == "__main__":
     base_path = os.path.join(home,'ray_results')
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment_path", default=base_path, help="the model you want to hpo")
-    parser.add_argument("--experiment_name", default='conv_ae1D/third_wheel_02-22-23:19:07:42_conv_ae1D_sl_40_run1', help="the model you want to hpo")
+    parser.add_argument("--experiment_name", default='lstm_ae/4_wheel_system_01-23-23:20:51:33_extended_params_third_run_sl16', help="the model you want to hpo")
+    parser.add_argument("--ranking", default=10, help="the model you want to hpo")
     args = parser.parse_args()
     main(args)
-
-
-#4_wheel_system_01-24-23:18:55:37_extended_params_sl_100_run_2
-#4_wheel_system_01-24-23:13:40:52_extended_params_sl_100
-#third_wheel_01-24-23:11:20:34_extended_params_sl_100
-#4_wheel_system_01-24-23:12:00:52_extended_params_sl_16
-#4_wheel_system_01-25-23:10:09:11_conv_extended_params_sl_16
-#4_wheel_system_01-26-23:10:28:37_conv_extended_params_sl_16_run_2

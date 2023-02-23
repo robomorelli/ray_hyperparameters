@@ -1,7 +1,9 @@
 from models.vae import VAE
 from models.autoencoder import AE
 from models.lstm_ae import LSTM_AE
+from models.lstm import LSTM
 from models.conv_ae import CONV_AE
+from models.conv_ae1D import CONV_AE1D
 from models.lstm_vae import LSTM_VAE
 from models.cnn3d import CNN3D
 
@@ -28,9 +30,21 @@ def get_model(cfg, **kwargs):
         print(model)
         return model
 
+    elif cfg.model.name == "lstm":
+        model = LSTM(cfg, **kwargs)
+        print('loading lstm')
+        print(model)
+        return model
+
     elif cfg.model.name == "conv_ae":
         model = CONV_AE(cfg, **kwargs)
         print('loading conv_ae')
+        print(model)
+        return model
+
+    elif cfg.model.name == "conv_ae1D":
+        model = CONV_AE1D(cfg, **kwargs)
+        print('loading conv_ae 1D')
         print(model)
         return model
 
@@ -42,7 +56,4 @@ def get_model(cfg, **kwargs):
 
     elif cfg.model.name == "cnn3d":
         model = CNN3D(cfg, **kwargs)
-        # optimizer and criterion should be defined here
-        # optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        # criterion = nn.CrossEntropyLoss(weight=self.weights.to(self.device))
         return model
