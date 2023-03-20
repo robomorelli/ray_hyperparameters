@@ -3,14 +3,19 @@ tune_config:
       #intermediate_dim: tune.choice([5, 10, 20])
       epochs: tune.choice([200])
       lr: tune.choice([0.0009, 0.0003, 0.001])
-      batch_size: tune.choice([500])
-      seq_in_length: tune.choice([100])
+      batch_size: tune.choice([100, 500])
+      seq_in_length: tune.choice([40])
       dilation: tune.choice([1])
-      filter_num: tune.choice([64, 128])
+      #filter_num: tune.choice([12, 24, 36, 42, 64, 100, 128]) # 16 channels with flattened latent space
+      filter_num: tune.choice([12, 24, 36, 42, 64, 100, 110, 120]) # 16 channels
+      #filter_num: tune.choice([12, 24, 28]) # 4 channels with flattened
       n_layers: tune.choice([1, 2])
-      lr_patience: tune.choice([5])
-      kernel_size: tune.choice([3, 5, 7, 9])
-      pool: tune.choice(['True', 'False']) #if false >>> stride = 2
+      lr_patience: tune.choice([5, 10])
+      kernel_size: tune.choice([3, 5, 7, 9, 11])
+      increasing: tune.choice([0])
+      flattened: tune.choice([0]) # to enable in next run
+      latent_dim: tune.choice([100, 160, 320, 256, 400, 512]) #64 (4, 16) 160 (4, 40); 640 (16, 40) 256 (16,16)
+      pool: tune.choice([1, 0]) #if false >>> stride = 2
       activation: tune.choice(['Elu', 'Relu'])  #Only the first capital letter
 
 # Dataset
@@ -26,8 +31,8 @@ dataset:
              'RW1_therm', 'RW2_therm', 'RW3_therm', 'RW4_therm',
             'RW1_speed', 'RW2_speed', 'RW3_speed', 'RW4_speed',
             'RW1_cmd_volt', 'RW2_cmd_volt', 'RW3_cmd_volt', 'RW4_cmd_volt']
-  #columns: ['RW1_motcurr','RW1_therm',
-  #          'RW1_speed', 'RW1_cmd_volt']
+  #columns: ['RW3_motcurr','RW3_therm',
+  #          'RW3_speed', 'RW3_cmd_volt']
   dataset_subset: 1000000
   columns_subset: 0
   target: None

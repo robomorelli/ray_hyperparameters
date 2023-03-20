@@ -5,8 +5,8 @@ import torch
 from tqdm import tqdm
 
 class Encoder(nn.Module):
-    def __init__(self, in_channel=1, length = 16, kernel_size=3, filter_num_list=None,
-                  activation=nn.ReLU(),  stride=1, pool=True, padding = 1):
+    def __init__(self, in_channel=1, length = 16, kernel_size=3, latent_dim = 40, filter_num_list=None,
+                  activation=nn.ReLU(),  stride=1, pool=True, padding = 1, flattened=True):
         super(Encoder, self).__init__()
 
         self.nn_enc = nn.Sequential()
@@ -21,6 +21,8 @@ class Encoder(nn.Module):
         self.pool = pool
         self.stride = stride
         self.padding = padding
+        self.flattened = flattened
+        self.latent_dim = latent_dim
 
         for i, num in enumerate(self.filter_num_list):
             if i + 2 == len(self.filter_num_list):
@@ -32,8 +34,9 @@ class Encoder(nn.Module):
                                                                   self.kernel_size, activation = self.act,
                                                                       pool=self.pool, stride=self.stride, padding=self.padding))
 
-        self.flattened_size, self.w_enc = self._get_final_flattened_size()
-        #self.encoder_layer = nn.Linear(self.flattened_size, self.latent_dim)
+        self.flattened_size, self.l_enc = self._get_final_flattened_size()
+        if self.flattened:
+            self.encoder_layer = nn.Linear(self.flattened_size, self.latent_dim)
 
         self.init_kaiming_normal()
 
@@ -57,12 +60,15 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         enc = self.nn_enc(x)
+        if self.flattened:
+            enc = enc.view(-1, self.flattened_size)
+            enc = self.encoder_layer(enc)
         return enc
 
 
 class Decoder(nn.Module):
-    def __init__(self, in_channel=1, kernel_size=3, filter_num_list=None, flattened_size=None,
-                 length=16, activation=nn.ReLU()):
+    def __init__(self, in_channel=1, kernel_size=3, latent_dim = 60, filter_num_list=None, flattened_size=None,
+                 length=16, activation=nn.ReLU(), flattened=True):
         super(Decoder, self).__init__()
 
         self.nn_dec = nn.Sequential()
@@ -73,6 +79,13 @@ class Decoder(nn.Module):
         self.filter_num_list = filter_num_list
         self.act = activation
         self.filter_num_list = self.filter_num_list[::-1]
+        self.flattened = flattened
+        self.flattened_size = flattened_size
+        self.length = length
+        self.latent_dim = latent_dim
+
+        if self.flattened:
+            self.reshape=nn.Linear(self.latent_dim, self.flattened_size)
 
         for i, num in enumerate(self.filter_num_list):
             if i + 2 == len(self.filter_num_list):
@@ -94,6 +107,9 @@ class Decoder(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
+        if self.flattened:
+            x = self.reshape(x)
+            x = x.view((-1, self.filter_num_list[0], self.length))
         dec = self.nn_dec(x)
         dec = self.decoder_layer(dec)
         return dec
@@ -116,18 +132,36 @@ class CONV_AE1D(nn.Module):
         if not self.pool:
             self.stride = 2
 
-        self.w = self.length  # sequence length (to transpose respect to the df format)
+        if 'increasing' in list(kwargs.keys()):
+            self.increasing = kwargs['increasing']
+        else:
+            self.increasing = False
 
-        self.filter_num_list = [int(self.filter_num / ((ix + 1)*2)) for ix in range(self.n_layers)]
+        if 'flattened' in list(kwargs.keys()):
+            self.flattened = kwargs['flattened']
+        else:
+            self.flattened = True
+
+        if 'latent_dim' in list(kwargs.keys()):
+            self.latent_dim = kwargs['latent_dim']
+        else:
+            self.latent_dim = 60
+
+        if self.increasing:
+            self.filter_num_list = [int(self.filter_num * ((ix + 1) * 2)) for ix in range(self.n_layers)]
+        else:
+            self.filter_num_list = [int(self.filter_num / ((ix + 1)*2)) for ix in range(self.n_layers)]
+
         self.filter_num_list = [self.in_channel] + [self.filter_num] + self.filter_num_list
-
-        self.encoder = Encoder(self.in_channel, kernel_size=self.kernel_size, filter_num_list=self.filter_num_list,
-                               length=self.length, activation=self.act, pool=self.pool, stride=self.stride, padding=self.padding)
-        self.flattened_size = self.encoder.flattened_size
-        self.decoder = Decoder(self.in_channel, kernel_size=self.kernel_size, filter_num_list=self.filter_num_list,
-                                 flattened_size=self.flattened_size,
+        self.encoder = Encoder(self.in_channel, kernel_size=self.kernel_size, latent_dim = self.latent_dim, filter_num_list=self.filter_num_list,
                                length=self.length,
-                               activation=self.act)
+                               activation=self.act, pool=self.pool,
+                               stride=self.stride, padding=self.padding, flattened = self.flattened)
+        self.flattened_size = self.encoder.flattened_size
+        self.decoder = Decoder(self.in_channel, kernel_size=self.kernel_size, latent_dim = self.latent_dim, filter_num_list=self.filter_num_list,
+                                 flattened_size=self.flattened_size,
+                               length=self.encoder.l_enc,
+                               activation=self.act, flattened=self.flattened)
 
     def forward(self, x):
         enc = self.encoder(x)

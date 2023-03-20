@@ -28,6 +28,8 @@ class trainCONVAE(tune.Trainable):
         self.activation = config['activation']
         self.kernel_size = config['kernel_size']
         self.dilation = config['dilation']
+        self.flattened = config['flattened']
+        self.increasing = config['increasing']
         self.predict = 0
         self.padding = int((self.dilation * (self.kernel_size - 1) / 2))
 
@@ -50,13 +52,15 @@ class trainCONVAE(tune.Trainable):
         self.dataset = dataset
         self.data_path = data_path
 
+
         self.device = torch.device("cuda" if torch.cuda.is_available() and self.cfg.resources.gpu_trial else "cpu")
 
         self.model = get_model(self.cfg, in_channel=1,  heigth=self.seq_in_length, width=n_features,
                                kernel_size=self.kernel_size,
                                filter_num=self.filter_num, latent_dim=self.latent_dim, n_layers=self.n_layers,
                                activation=self.activation,
-                               padding=self.padding).to(self.device)
+                               padding=self.padding, flattened=self.flattened,
+                               increasing=self.increasing).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8,
                                                             patience=self.lr_patience, threshold=0.0001, threshold_mode='rel',
@@ -72,7 +76,8 @@ class trainCONVAE(tune.Trainable):
                         'target': self.target, 'batch_size': self.batch_size, 'train_val_split': self.train_val_split,
                         'data_path': self.data_path, 'dataset': self.dataset, 'activation': self.activation, 'kernel_size':self.kernel_size,
                         'filter_num':self.filter_num, 'latent_dim':self.latent_dim, 'n_layers':self.n_layers,
-                        'padding':self.padding, 'dilation':self.dilation}
+                        'padding':self.padding, 'dilation':self.dilation,
+                           'flattened':self.flattened, 'increasing':self.increasing}
 
         self.parameters_number = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 

@@ -21,6 +21,8 @@ class trainLSTM(tune.Trainable):
         self.embedding_dim = config['embedding_dim']
         self.n_layers_1 = config['n_layers_cell_1']
         self.n_layers_2 = config['n_layers_cell_2']
+        if self.n_layers_2 > self.n_layers_1 and self.n_layers_2 != 1:
+            self.n_layers_2 = self.n_layers_2 - 1
         self.lr = config['lr']
         self.batch_size = config['batch_size']
         self.epochs = config['epochs']

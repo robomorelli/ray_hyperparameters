@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#PBS -N 4_wheel_system_conv_ae_sl_16_run_4
+#PBS -N 4_wheels_system_conv_ae1D_sl_40_run_2
 #PBS -o ray_hpo.txt
 #PBS -q gpu
 #PBS -e ray_hpo_error.txt

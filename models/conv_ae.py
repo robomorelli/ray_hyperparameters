@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 class Encoder(nn.Module):
     def __init__(self, in_channel=1, kernel_size=3, filter_num_list=None, latent_dim=10,
-                 img_heigth=16, img_width=16, activation=nn.ReLU(), padding=1):
+                 img_heigth=16, img_width=16, activation=nn.ReLU(), padding=1, flattened=True):
         super(Encoder, self).__init__()
 
         self.nn_enc = nn.Sequential()
@@ -22,6 +22,7 @@ class Encoder(nn.Module):
         self.w = img_width
         self.act = activation
         self.padding = padding
+        self.flattened = flattened
 
         for i, num in enumerate(self.filter_num_list):
             if i + 2 == len(self.filter_num_list):
@@ -32,9 +33,11 @@ class Encoder(nn.Module):
             self.nn_enc.add_module('enc_lay_{}'.format(i), conv_block(num, self.filter_num_list[i+1],
                                                                   self.kernel_size, activation = self.act,
                                                                       padding=self.padding))
-
         self.flattened_size, self.h_enc, self.w_enc = self._get_final_flattened_size()
-        self.encoder_layer = nn.Linear(self.flattened_size, self.latent_dim)
+        if self.flattened:
+
+            #self.nn_enc.add_module('flat_lay'.format(i), nn.Linear(self.flattened_size, self.latent_dim))
+            self.encoder_layer = nn.Linear(self.flattened_size, self.latent_dim)
 
         self.init_kaiming_normal()
 
@@ -57,16 +60,17 @@ class Encoder(nn.Module):
         return c * w * h, w, h
 
     def forward(self, x):
-        x = self.nn_enc(x)
-        x = x.view(-1, self.flattened_size)
-        enc = self.encoder_layer(x)
+        enc = self.nn_enc(x)
+        if self.flattened:
+            enc = enc.view(-1, self.flattened_size)
+            enc = self.encoder_layer(enc)
         #enc = self.act(enc)
         return enc
 
 
 class Decoder(nn.Module):
     def __init__(self, in_channel=1, kernel_size=3, filter_num_list=None, latent_dim=10, flattened_size=None,
-                 img_heigth=16, img_width=16, h_enc=2, w_enc=2, activation=nn.ReLU()):
+                 img_heigth=16, img_width=16, h_enc=2, w_enc=2, activation=nn.ReLU(), flattened=True):
         super(Decoder, self).__init__()
 
         self.nn_dec = nn.Sequential()
@@ -77,6 +81,7 @@ class Decoder(nn.Module):
         self.kernel_size = kernel_size
         self.filter_num_list = filter_num_list
         self.latent_dim = latent_dim
+        self.flattened=flattened
         self.flattened_size = flattened_size
         self.h = img_heigth
         self.w = img_width
@@ -85,7 +90,10 @@ class Decoder(nn.Module):
         self.act = activation
         self.filter_num_list = self.filter_num_list[::-1]
 
-        self.reshape = nn.Linear(self.latent_dim, self.flattened_size)
+        print('FLATTENEDDDD', self.flattened)
+
+        if self.flattened:
+            self.reshape = nn.Linear(self.latent_dim, self.flattened_size)
 
         for i, num in enumerate(self.filter_num_list):
             if i + 2 == len(self.filter_num_list):
@@ -108,8 +116,9 @@ class Decoder(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
-        x = self.reshape(x)
-        x = x.view((-1, self.filter_num_list[0], self.h_enc, self.w_enc)) # (bsie, num_list, n_features, -1)
+        if self.flattened:
+            x = self.reshape(x)
+            x = x.view((-1, self.filter_num_list[0], self.h_enc, self.w_enc)) # (bsie, num_list, n_features, -1)
         out = self.nn_dec(x)
         out = self.decoder_layer(out)
         return out
@@ -127,25 +136,39 @@ class CONV_AE(nn.Module):
         self.latent_dim = kwargs['latent_dim']
         self.n_layers = kwargs['n_layers']
         self.act = kwargs['activation']
+
         if 'padding' in list(kwargs.keys()):
             self.padding = kwargs['padding']
         else:
             self.padding=1
+        if 'flattened' in list(kwargs.keys()):
+            self.flattened = kwargs['flattened']
+        else:
+            self.flattened=True
+        if 'increasing' in list(kwargs.keys()):
+            self.increasing = kwargs['increasing']
+        else:
+            self.increasing=False #default choice
 
         self.h = self.n_features # number of features (to transpose respect to the df format)
         self.w = self.seq_in_length  # sequence length (to transpose respect to the df format)
 
-        self.filter_num_list = [int(self.filter_num * ((ix + 1)*2)) for ix in range(self.n_layers)]
+        if self.increasing:
+            self.filter_num_list = [int(self.filter_num * ((ix + 1)*2)) for ix in range(self.n_layers)]
+        else:
+            self.filter_num_list = [int(self.filter_num / ((ix + 1) * 2)) for ix in range(self.n_layers)]
+
         self.filter_num_list = [self.in_channel] + [self.filter_num] + self.filter_num_list
 
         self.encoder = Encoder(self.in_channel, kernel_size=self.kernel_size, filter_num_list=self.filter_num_list,
                                latent_dim=self.latent_dim,
-                               img_heigth=self.h, img_width=self.w, activation = self.act, padding=self.padding)
+                               img_heigth=self.h, img_width=self.w, activation = self.act, padding=self.padding
+                               ,flattened=self.flattened)
         self.flattened_size = self.encoder.flattened_size
         self.decoder = Decoder(self.in_channel, kernel_size=self.kernel_size, filter_num_list=self.filter_num_list,
                                latent_dim=self.latent_dim, flattened_size=self.flattened_size,
                                img_heigth=self.h, img_width=self.w, h_enc=self.encoder.h_enc, w_enc=self.encoder.w_enc,
-                               activation = self.act)
+                               activation = self.act, flattened=self.flattened)
 
     def forward(self, x):
         enc = self.encoder(x)

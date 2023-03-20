@@ -27,8 +27,23 @@ class trainCONVAE1D(tune.Trainable):
         self.pool = config['pool']
         self.dilation = config['dilation']
 
-        self.pool_dict = {'True':True, 'False': False}
-        self.pool = self.pool_dict[self.pool]
+        if 'increasing' in list(config.keys()):
+            self.increasing = config['increasing']
+        else:
+            self.increasing = False
+
+        if 'flattened' in list(config.keys()):
+            self.flattened = config['flattened']
+        else:
+            self.flattened = True
+
+        if 'latent_dim' in list(config.keys()):
+            self.latent_dim = config['latent_dim']
+        else:
+            self.latent_dim = 60
+
+        #self.pool_dict = {'True':True, 'False': False}
+        #self.pool = self.pool_dict[self.pool]
         if not self.pool:
             self.stride=2
         self.predict = 0
@@ -53,6 +68,7 @@ class trainCONVAE1D(tune.Trainable):
         self.data_path = data_path
         self.padding = int((self.dilation * (self.kernel_size-1)/2))
 
+
         if self.pool == False:
             self.stride = 2
         else:
@@ -63,7 +79,10 @@ class trainCONVAE1D(tune.Trainable):
         self.model = get_model(self.cfg, in_channel=self.n_features ,  length=self.length,
                                kernel_size=self.kernel_size,
                                filter_num=self.filter_num, n_layers=self.n_layers,
-                               activation=self.activation, pool=self.pool, stride = self.stride, padding = self.padding).to(self.device)
+                               activation=self.activation, pool=self.pool,
+                               stride = self.stride, padding = self.padding,
+                               increasing=self.increasing, flattened=self.flattened,
+                               latent_dim=self.latent_dim).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', factor=0.8,
                                                             patience=self.lr_patience, threshold=0.0001, threshold_mode='rel',
@@ -79,7 +98,10 @@ class trainCONVAE1D(tune.Trainable):
                         'sampling_rate':self.sample_rate, 'columns_subset': self.columns_subset, 'dataset_subset':self.dataset_subset,
                         'target': self.target, 'batch_size': self.batch_size, 'train_val_split': self.train_val_split,
                         'data_path': self.data_path, 'dataset': self.dataset, 'activation': self.activation, 'kernel_size':self.kernel_size,
-                        'filter_num':self.filter_num, 'n_layers':self.n_layers, 'pool':self.pool, 'stride':self.stride, 'padding':self.padding}
+                        'filter_num':self.filter_num, 'n_layers':self.n_layers,
+                        'pool':self.pool, 'stride':self.stride, 'padding':self.padding
+                        ,'increasing':self.increasing, 'flattened':self.flattened,
+                        'latent_dim':self.latent_dim}
 
         self.parameters_number = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
