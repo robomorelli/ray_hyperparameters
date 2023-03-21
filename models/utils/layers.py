@@ -107,7 +107,6 @@ def conv_block(in_f, out_f, kernel_size =3, padding = 1, activation=nn.ReLU(), b
         if pool:
             return nn.Sequential(
                 nn.Conv2d(in_f, out_f, kernel_size, padding=padding, *args, **kwargs),
-                nn.BatchNorm2d(out_f),
                 nn.MaxPool2d(pool_ks, pool_stride, pool_pad),
                 activation)
         else:
