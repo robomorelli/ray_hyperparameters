@@ -38,10 +38,10 @@ def main(args):
     analysis = tune.run(trainer,
                         scheduler=sched,
                         resources_per_trial=resources_per_trial,
-                        num_samples=50,
+                        num_samples=4,
                         checkpoint_at_end=True, #otherwise it fails on multinode?
                         local_dir="~/ray_results",
-                        name="{}/4_wheels_system_{}_conv_ae1D_sl40_run_2".format(cfg.model.name,date.replace('/', '-')),
+                        name="{}/4_wheels_system_{}_conv_ae1D_sl_40_12M_unscaled_unscaled_overlap_0".format(cfg.model.name,date.replace('/', '-')),
 
                         config=config)
 

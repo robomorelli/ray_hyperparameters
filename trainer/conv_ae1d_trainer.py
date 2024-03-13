@@ -56,7 +56,7 @@ class trainCONVAE1D(tune.Trainable):
 
         self.act_dict = {'Relu': nn.ReLU(), 'Elu': nn.ELU(), 'Selu': nn.SELU(),'LRelu': nn.LeakyReLU()}
         self.activation = self.act_dict[self.activation]
-        self.trainloader, self.valloader, n_features, scaled, columns_subset,\
+        self.trainloader, self.valloader, n_features, scaled, scale, columns_subset,\
         dataset_subset, train_val_split, dataset, data_path = get_dataset(self.cfg, batch_size=self.batch_size
                                                                           , sequence_length=config['seq_in_length'])
         self.scaled = scaled
@@ -66,6 +66,7 @@ class trainCONVAE1D(tune.Trainable):
         self.train_val_split = train_val_split
         self.dataset = dataset
         self.data_path = data_path
+        self.scale = scale
         self.padding = int((self.dilation * (self.kernel_size-1)/2))
 
 
@@ -101,7 +102,7 @@ class trainCONVAE1D(tune.Trainable):
                         'filter_num':self.filter_num, 'n_layers':self.n_layers,
                         'pool':self.pool, 'stride':self.stride, 'padding':self.padding
                         ,'increasing':self.increasing, 'flattened':self.flattened,
-                        'latent_dim':self.latent_dim}
+                        'latent_dim':self.latent_dim, 'scale':self.scale}
 
         self.parameters_number = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 

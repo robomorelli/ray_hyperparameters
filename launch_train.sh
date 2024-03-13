@@ -1,13 +1,13 @@
 #!/bin/bash
 
-#PBS -N 4_wheels_system_conv_ae1D_sl_40_run_2
+#PBS -N 4_wheels_system_conv_ae1D_sl_40_12M_unscaled_unscaled_overlap_0
 #PBS -o ray_hpo.txt
 #PBS -q gpu
 #PBS -e ray_hpo_error.txt
 #PBS -k oe
 #PBS -m e
 #PBS -M roberto.morelli.ext@leonardocompany.com
-#PBS -l select=4:ngpus=4:ncpus=48,walltime=72:00:00
+#PBS -l select=1:ngpus=4:ncpus=48,walltime=72:00:00
 
 ##PBS_O_WORKDIR = "${PBS_O_WORKDIR}/artificial_intelligence/repos/fdir"
 ##echo "PBS WORKDIR: {$PBS_O_WORKDIR}"
@@ -30,7 +30,7 @@ MASTER=`/bin/hostname -s`
 echo "MASTER: {$MASTER}"
 
 WORKER=`cat $PBS_NODEFILE | grep -v $MASTER`
-echo "WORKER: {$WORKER}"
+echo "WORKER: {$WORKER}" 
 #Make sure this node (MASTER) comes first
 HOSTLIST="$MASTER $WORKER"
 ######################################################################

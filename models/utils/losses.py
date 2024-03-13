@@ -3,8 +3,9 @@ from models.utils.layers import clip_x_to0
 
 
 def KL_loss(mu, log_var):
-    kl = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
-    kl = kl.sum(-1)     # to go from multi-dimensional z to single dimensional z : (batch_size x latent_size) ---> (batch_size)
+    #kl = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
+    kl = -0.5 * ((1 + log_var - mu.pow(2) - log_var.exp()).sum(-1))
+    #kl = kl.sum(-1)     # to go from multi-dimensional z to single dimensional z : (batch_size x latent_size) ---> (batch_size)
                             # i.e Z = [ [z1_1, z1_2 , ...., z1_lt] ] ------> z = [ z1]
                             #         [ [z2_1, z2_2, ....., z2_lt] ]             [ z2]
                             #                   .                                [ . ]

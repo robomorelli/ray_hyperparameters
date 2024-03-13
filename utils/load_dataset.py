@@ -46,39 +46,64 @@ def get_dataset(cfg, **kwargs):
         feats = cfg.dataset.feats
         clean = cfg.dataset.clean
         scaled = cfg.dataset.scaled
-        shuffle = cfg.dataset.shuffle
         columns_subset = cfg.dataset.columns_subset
         dataset_subset = cfg.dataset.dataset_subset
         train_val_split = cfg.dataset.train_val_split
         forecast_all = cfg.dataset.forecast_all
         sampling_rate = cfg.dataset.sample_rate
+        scale=cfg.dataset.scale
+        random_split = cfg.dataset.random_split
+        shuffle_train = cfg.dataset.shuffle_train
+        perc_overlap = cfg.dataset.perc_overlap
+
+        print('DATASET lenght ', cfg.dataset.dataset_subset)
 
         sequence_length = kwargs['sequence_length']
 
-        if clean:
-            dataset_name = 'dataset_{}/{}_2016-2018_clean_{}.pkl'.format(sample_rate, feats, sample_rate)
+        if scaled:
+            dataset_name = 'dataset_4s/all_2016-2018_clean_std_4s.pkl'
         else:
-            dataset_name = 'dataset_{}/{}_2016-2018_{}.pkl'.format(sample_rate, feats, sample_rate)
-
+            dataset_name = 'dataset_4s/all_2016-2018_clean_4s.pkl'
 
         data_path = os.path.join(sentinel_path, dataset_name)
         df = pd.read_pickle(data_path)
 
-        df_train, df_test = prep_sentinel(df, cfg.dataset.columns, columns_subset=cfg.dataset.columns_subset,
+        '''
+        df_train, df_test, df = prep_sentinel(df, cfg, cfg.dataset.columns, columns_subset=cfg.dataset.columns_subset,
                                         dataset_subset=cfg.dataset.dataset_subset, train_val_split=train_val_split,
-                                         scaled=scaled)
-
-        n_features = len(df_train.columns)
-
-        # Dataset for dataloader definition
+                                        scale=scale)
+        
         train_dataset = Dataset_seq(df_train, target=cfg.dataset.target, sequence_length=cfg.dataset.sequence_length,
                                     out_window=cfg.dataset.out_window, prediction=False,
                                     forecast_all = cfg.dataset.forecast_all, transform=transform)
         trainloader = DataLoader(dataset=train_dataset, batch_size=kwargs['batch_size'], shuffle=True)
+
         test_dataset = Dataset_seq(df_test, target=cfg.dataset.target, sequence_length=cfg.dataset.sequence_length,
                                     out_window=cfg.dataset.out_window, prediction=False,
                                    forecast_all = cfg.dataset.forecast_all, transform=transform)
         valloader = DataLoader(dataset=test_dataset, batch_size=kwargs['batch_size'], shuffle=False)
+
+        '''
+
+        train_sampler, val_sampler, df = prep_sentinel(df, cfg, cfg.dataset.columns, columns_subset=cfg.dataset.columns_subset,
+                                        dataset_subset=cfg.dataset.dataset_subset, train_val_split=train_val_split,
+                                         scale=scale, perc_overlap = perc_overlap, random_split=random_split,
+                                                       shuffle_train=shuffle_train)
+
+        n_features = len(df.columns)
+
+        # Dataset for dataloader definition
+
+        train_dataset = Dataset_seq(df, target=cfg.dataset.target, sequence_length=cfg.dataset.sequence_length,
+                                    out_window=cfg.dataset.out_window, prediction=False,
+                                    forecast_all = cfg.dataset.forecast_all, transform=transform)
+        trainloader = DataLoader(dataset=train_dataset, batch_size=kwargs['batch_size']
+                                 ,sampler=train_sampler)#, shuffle=True)
+        test_dataset = Dataset_seq(df, target=cfg.dataset.target, sequence_length=cfg.dataset.sequence_length,
+                                    out_window=cfg.dataset.out_window, prediction=False,
+                                   forecast_all = cfg.dataset.forecast_all, transform=transform)
+        valloader = DataLoader(dataset=test_dataset, batch_size=kwargs['batch_size'], sampler=val_sampler)
+                                #, shuffle=False)
 
 
         if 'conv' not in cfg.model.name:
@@ -115,7 +140,7 @@ def get_dataset(cfg, **kwargs):
                     torch.save(valloader, os.path.join(root,'dataloader/test_dataloader_not_scaled_{}_ft_{}_{}_shuffle.pth'.format(
                         n_features, sampling_rate, sequence_length)))
 
-        return trainloader, valloader, n_features, scaled, columns_subset, dataset_subset, train_val_split, dataset_name, data_path
+        return trainloader, valloader, n_features, scaled, scale, columns_subset, dataset_subset, train_val_split, dataset_name, data_path
 
     if cfg.dataset.name == "nls_kdd":
         # Preprocessing step (there is also testx to use for example in test accuray in trainer step
